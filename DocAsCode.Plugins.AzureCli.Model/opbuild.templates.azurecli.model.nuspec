@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<package>
+  <metadata>
+    <id>opbuild.templates.azurecli.model</id>
+    <version>1.0.0</version>
+    <title>package for azurecli docs model</title>
+    <authors>Microsoft</authors>
+    <owners>Microsoft</owners>
+    <description>The package contains model for azure command line docs.</description>
+    <releaseNotes>Initial Version</releaseNotes>
+    <copyright>Copyright 2016</copyright>
+    <tags>OpenPublishing</tags>
+  </metadata>
+  <files>
+    <file src="$DropPath$**\*.dll" target="azurecli\model" />
+    <file src="$DropPath$**\*.config" target="azurecli\model" />
+  </files>
+</package>

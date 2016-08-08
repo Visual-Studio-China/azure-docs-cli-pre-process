@@ -1,0 +1,25 @@
+###############
+#    folder   #
+###############
+.vs/
+TEMP/
+packages/
+**/bin/
+**/obj/
+**/csx/
+**/ecf/
+**/TestResults
+
+###############
+#  temp file  #
+###############
+*.log
+*.tmp
+*.vsprops
+*.suo
+*.user
+*.dll
+*.exe
+*.pdb
+*.dbmdl
+*.cache
