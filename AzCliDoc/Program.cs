@@ -10,17 +10,13 @@ namespace AzCliDocPreprocessor
         {
             try
             {
-                var result = Parser.Default.ParseArguments<Options>(args);
-                result.MapResult(
-                    options =>
-                    {
-                        new DocPreprocessor().Run(options);
-                        return 0;
-                    },
-                    errors =>
-                    {
-                        throw new ApplicationException(string.Join("|", errors.Select(e => e.ToString())));
-                    });
+                Options options = new Options();
+                if (Parser.Default.ParseArguments(args, options))
+                {
+                    new DocPreprocessor().Run(options);
+                }
+                else
+                    throw new ApplicationException("Invalid arguments.");
             }
             catch (Exception e)
             {

@@ -7,6 +7,11 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AzCliDocPreprocessor", "AzC
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DocAsCode.Plugins.AzureCli.Model", "DocAsCode.Plugins.AzureCli.Model\DocAsCode.Plugins.AzureCli.Model.csproj", "{23227D89-6EB6-4B44-A7DA-A92FD1EC5437}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Nuget", "Nuget", "{367C7D0D-B8EC-45CC-A48C-A6AD16924353}"
+	ProjectSection(SolutionItems) = preProject
+		Nuget\nuget.exe = Nuget\nuget.exe
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU

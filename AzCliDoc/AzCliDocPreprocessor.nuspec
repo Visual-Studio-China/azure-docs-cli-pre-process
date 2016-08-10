@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<package >
+  <metadata>
+    <id>$id$</id>
+    <version>$version$</version>
+    <title>package for azurecli docs xml to yml converter</title>
+    <authors>Microsoft</authors>
+    <owners>Microsoft</owners>
+    <description>The package contains converter for azure command line docs.</description>
+    <releaseNotes>Initial Version</releaseNotes>
+    <copyright>Copyright 2016</copyright>
+    <tags>OpenPublishing</tags>
+  </metadata>
+  <files>
+    <file src="bin\Release\*.dll" target="tools" />
+    <file src="bin\Release\*.config" target="tools" />
+    <file src="bin\Release\*.exe" target="tools" />
+  </files>
+</package>
