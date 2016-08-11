@@ -80,7 +80,7 @@
   <Target Name="AfterBuild">
   </Target>
   -->
-  <Target Name="AfterBuild" Condition=" '$(Configuration)' == 'Release' ">
+  <!--<Target Name="AfterBuild" Condition=" '$(Configuration)' == 'Release' ">
     <Exec Command="&quot;$(SolutionDir)Nuget\nuget.exe&quot; pack  $(ProjectDir)AzCliDocPreprocessor.nuspec" />
-  </Target>
+  </Target>-->
 </Project>
