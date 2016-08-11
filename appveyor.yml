@@ -1,0 +1,22 @@
+version: 1.0.{build}
+configuration: Release
+platform: Any CPU
+
+nuget:
+  account_feed: true
+  project_feed: true
+  
+before_build:
+- cmd: nuget restore
+
+build:
+  verbosity: minimal
+
+after_build:
+- ps: >-
+    nuget pack AzCliDoc\AzCliDocPreprocessor.nuspec
+
+    Get-ChildItem AzCliDoc\azure.cli.doc.xml2yml.*.nupkg | % { Push-AppveyorArtifact $_ -FileName $_.FullName }
+
+artifacts:
+- path: '**\azure.cli.doc.xml2yml.*.nupkg'
