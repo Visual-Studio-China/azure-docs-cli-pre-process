@@ -2,7 +2,7 @@
 <package >
   <metadata>
     <id>azure.cli.doc.xml2yml</id>
-    <version>$version$</version>
+    <version>1.0.0</version>
     <title>package for azurecli docs xml to yml converter</title>
     <authors>Microsoft</authors>
     <owners>Microsoft</owners>
@@ -12,8 +12,8 @@
     <tags>OpenPublishing</tags>
   </metadata>
   <files>
-    <file src="bin\Debug\*.dll" target="tools" />
-    <file src="bin\Debug\*.config" target="tools" />
-    <file src="bin\Debug\*.exe" target="tools" />
+    <file src="bin\Release\*.dll" target="tools" />
+    <file src="bin\Release\*.config" target="tools" />
+    <file src="bin\Release\*.exe" target="tools" />
   </files>
 </package>
