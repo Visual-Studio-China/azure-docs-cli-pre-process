@@ -118,7 +118,7 @@ namespace AzCliDocPreprocessor
                 var fields = arg.XPathSelectElements("desc_content/field_list/field");
                 foreach(var field in fields)
                 {
-                    var fieldValue = field.XPathSelectElement("field_body/paragraph").Value;
+                    var fieldValue = ExtractFieldValue(field);
                     var fieldName = field.Element("field_name").Value.ToLower();
                     switch (fieldName)
                     {
@@ -158,6 +158,19 @@ namespace AzCliDocPreprocessor
                 command.Parameters.Add(cliArg);
             }
             return command;
+        }
+
+        private string ExtractFieldValue(XElement field)
+        {
+            var paragraph = field.XPathSelectElement("field_body/paragraph");
+            if (paragraph != null)
+                return paragraph.Value;
+
+            var listItems = field.XPathSelectElements("field_body/bullet_list/list_item");
+            if(listItems.Count() > 0)
+                return string.Join("|", listItems.Select(i => i.Value).ToArray());
+
+            throw new ApplicationException(string.Format("UNKNOW field_body:{0}", field.Value));
         }
 
         private AzureCliViewModel ExtractCommand(XElement xElement, bool isGroup)
