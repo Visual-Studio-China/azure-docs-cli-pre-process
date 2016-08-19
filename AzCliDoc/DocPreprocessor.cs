@@ -214,7 +214,7 @@ namespace AzCliDocPreprocessor
             {
                 name = string.Format("{0} {1}", AzGroupName, name);
             }
-            var id = name.Replace(' ', '_');
+            var ids = name.Split();
             var summary = ExtractFieldValueByName(xElement, "Summary");
             var description = ExtractFieldValueByName(xElement, "Description");
             var docSource = ExtractFieldValueByName(xElement, "Doc Source", false);
@@ -225,7 +225,7 @@ namespace AzCliDocPreprocessor
             };
 
             command.Name = name;
-            command.Uid = id;
+            command.Uid = ids[ids.Length-1];
             command.Summary = summary;
             command.Description = description;
             if(!string.IsNullOrEmpty(docSource))
