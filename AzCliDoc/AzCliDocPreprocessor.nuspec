@@ -2,7 +2,7 @@
 <package >
   <metadata>
     <id>azure.cli.doc.xml2yml</id>
-    <version>1.0.0</version>
+    <version>1.0.1</version>
     <title>package for azurecli docs xml to yml converter</title>
     <authors>Microsoft</authors>
     <owners>Microsoft</owners>

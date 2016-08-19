@@ -12,6 +12,8 @@ namespace AzCliDocPreprocessor
 {
     internal class DocPreprocessor
     {
+        private const string AzGroupName = "az";
+        private const string FormalAzGroupName = "Azure";
         private List<AzureCliViewModel> CommandGroups { get; set; }
         private Dictionary<string, AzureCliViewModel> NameCommandGroupMap { get; set; }
         private Options Options { get; set; }
@@ -59,15 +61,6 @@ namespace AzCliDocPreprocessor
 
             CommandGroups = new List<AzureCliViewModel>();
             NameCommandGroupMap = new Dictionary<string, AzureCliViewModel>();
-
-            var azGroup = new AzureCliViewModel()
-            {
-                Children = new List<AzureCliViewModel>()
-            };
-            azGroup.Name = "az";
-            azGroup.Uid = "az";
-            CommandGroups.Add(azGroup);
-            NameCommandGroupMap["az"] = azGroup;
         }
 
         private void Save(string destDirectory)
@@ -81,20 +74,45 @@ namespace AzCliDocPreprocessor
 
             using (var tocWriter = new StreamWriter(Path.Combine(destDirectory, Options.TocFileName), false))
             {
-               var serializer = new Serializer();
-               foreach (var group in CommandGroups)
+                var serializer = new Serializer();
+                foreach (var group in CommandGroups)
                 {
-                    var docFileName = group.Uid + Options.DocExtension;
-                    using (var writer = new StreamWriter(Path.Combine(destDirectory, docFileName), false))
+                    var relativeDocPath = PrepareDocFilePath(destDirectory, group.Name);
+                    using (var writer = new StreamWriter(Path.Combine(destDirectory, relativeDocPath), false))
                     {
                         serializer.Serialize(writer, group);
                     }
 
                     var builder = new StringBuilder();
                     builder.Append('#', group.Name.Count(c => c == ' ') + 1);
-                    builder.AppendFormat(" [{0}]({1})", group.Name, docFileName);
+                    string tocName = string.Equals(group.Name, AzGroupName, StringComparison.OrdinalIgnoreCase) ? FormalAzGroupName : group.Name;
+                    builder.AppendFormat(" [{0}]({1})", tocName, relativeDocPath);
                     tocWriter.WriteLine(builder.ToString());
                 }
+            }
+        }
+
+        private string PrepareDocFilePath(string destDirectory, string name)
+        {
+            var pathSegments = name.Split(new[] { ' ' });
+            if (pathSegments.Length == 1)
+                return "index" + Options.DocExtension;
+
+            string relativePath = string.Empty;
+
+            for (int i = 1; i < pathSegments.Length - 1; ++i)
+            {
+                relativePath = Path.Combine(relativePath, pathSegments[i]);
+                CreateDirectoryIfNotExist(Path.Combine(destDirectory, relativePath));
+            }
+            return Path.Combine(relativePath, pathSegments[pathSegments.Length - 1] + Options.DocExtension);
+        }
+
+        private void CreateDirectoryIfNotExist(string directory)
+        {
+            if (!Directory.Exists(directory))
+            {
+                Directory.CreateDirectory(directory);
             }
         }
 
@@ -164,26 +182,43 @@ namespace AzCliDocPreprocessor
         {
             var paragraph = field.XPathSelectElement("field_body/paragraph");
             if (paragraph != null)
-                return paragraph.Value;
+                return ResolveHyperLink(paragraph);
 
             var listItems = field.XPathSelectElements("field_body/bullet_list/list_item");
             if(listItems.Count() > 0)
-                return string.Join("|", listItems.Select(i => i.Value).ToArray());
+                return string.Join("|", listItems.Select(element => ResolveHyperLink(element)).ToArray());
 
             throw new ApplicationException(string.Format("UNKNOW field_body:{0}", field.Value));
         }
 
+        private string ResolveHyperLink(XElement element)
+        {
+            var refs = element.Descendants("reference");
+            if (!refs.Any())
+                return element.Value;
+
+            foreach(var reference in refs.ToArray())
+            {
+                var newRef = XElement.Parse("<a href=''></a>");
+                newRef.Attribute("href").Value = reference.Attribute("refuri")?.Value;
+                newRef.Value = reference.Value;
+                reference.ReplaceWith(newRef);
+            }
+            return String.Concat(element.Nodes());
+        }
+
         private AzureCliViewModel ExtractCommand(XElement xElement, bool isGroup)
         {
-            var name = "az " + xElement.XPathSelectElement("desc_signature/desc_addname").Value;
+            var name = xElement.XPathSelectElement("desc_signature/desc_addname").Value;
+            if(!string.Equals(name, AzGroupName, StringComparison.OrdinalIgnoreCase))
+            {
+                name = string.Format("{0} {1}", AzGroupName, name);
+            }
             var id = name.Replace(' ', '_');
-            var fields = xElement.XPathSelectElements("desc_content/field_list/field");
-            var summary = from field in fields
-                          where string.Equals(field.Element("field_name").Value, "Summary", StringComparison.OrdinalIgnoreCase)
-                          select field.XPathSelectElement("field_body/paragraph").Value;
-            var description = from field in fields
-                              where string.Equals(field.Element("field_name").Value, "Description", StringComparison.OrdinalIgnoreCase)
-                              select field.XPathSelectElement("field_body/paragraph").Value;
+            var summary = ExtractFieldValueByName(xElement, "Summary");
+            var description = ExtractFieldValueByName(xElement, "Description");
+            var docSource = ExtractFieldValueByName(xElement, "Doc Source", false);
+
             AzureCliViewModel command = new AzureCliViewModel()
             {
                 Examples = new List<Example>()
@@ -191,8 +226,13 @@ namespace AzCliDocPreprocessor
 
             command.Name = name;
             command.Uid = id;
-            command.Summary = summary.FirstOrDefault();
-            command.Description = description.FirstOrDefault();
+            command.Summary = summary;
+            command.Description = description;
+            if(!string.IsNullOrEmpty(docSource))
+            {
+                command.Metadata["doc_source_url_repo"] = Options.RepoOfSource;
+                command.Metadata["doc_source_url_path"] = docSource;
+            }
 
             var examples = xElement.XPathSelectElements("desc_content/desc[@desctype='cliexample']");
             foreach(var example in examples)
@@ -204,6 +244,16 @@ namespace AzCliDocPreprocessor
             }
 
             return command;
+        }
+
+        private string ExtractFieldValueByName(XElement parent, string fieldName, bool resolveHyperLink = true)
+        {
+            var xPath = string.Format("desc_content/field_list/field[field_name = '{0}']/field_body/paragraph", fieldName);
+            var element = parent.XPathSelectElement(xPath);
+            if (element == null)
+                return string.Empty;
+
+            return resolveHyperLink ? ResolveHyperLink(element) : element.Value;
         }
     }
 }
