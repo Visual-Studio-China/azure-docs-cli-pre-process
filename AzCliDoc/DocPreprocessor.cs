@@ -225,7 +225,7 @@ namespace AzCliDocPreprocessor
             };
 
             command.Name = name;
-            command.Uid = ids[ids.Length-1];
+            command.Uid = name.Replace(" ", "_");
             command.Summary = summary;
             command.Description = description;
             if(!string.IsNullOrEmpty(docSource))
