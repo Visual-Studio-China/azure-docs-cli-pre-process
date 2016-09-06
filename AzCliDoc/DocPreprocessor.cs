@@ -1,4 +1,5 @@
 ﻿using Microsoft.DocAsCode.EntityModel.Plugins.OpenPublishing.AzureCli.Model;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -16,6 +17,7 @@ namespace AzCliDocPreprocessor
         private const string FormalAzGroupName = "Azure";
         private List<AzureCliViewModel> CommandGroups { get; set; }
         private Dictionary<string, AzureCliViewModel> NameCommandGroupMap { get; set; }
+        private Dictionary<string, string> DocCommitIdMap { get; set; }
         private Options Options { get; set; }
 
         public bool Run(Options options)
@@ -58,6 +60,15 @@ namespace AzCliDocPreprocessor
 
             if (string.IsNullOrEmpty(Options.DestDirectory))
                 throw new ArgumentException("Invalid DestDirectory");
+
+            if (!string.IsNullOrEmpty(Options.DocCommitMapFile))
+            {
+                using (StreamReader reader = new StreamReader(Options.DocCommitMapFile))
+                {
+                    var docCommitFileContent = reader.ReadToEnd();
+                    DocCommitIdMap = JsonConvert.DeserializeObject<Dictionary<string, string>>(docCommitFileContent);
+                }
+            }
 
             CommandGroups = new List<AzureCliViewModel>();
             NameCommandGroupMap = new Dictionary<string, AzureCliViewModel>();
@@ -230,8 +241,18 @@ namespace AzCliDocPreprocessor
             command.Description = description;
             if(!string.IsNullOrEmpty(docSource))
             {
-                command.Metadata["doc_source_url_repo"] = Options.RepoOfSource;
-                command.Metadata["doc_source_url_path"] = docSource;
+                if (!string.IsNullOrEmpty(Options.DocCommitMapFile))
+                {
+                    command.Metadata["doc_source_url_repo"] = string.Format("{0}/blob/{1}/", Options.RepoOfSource, Options.Branch);
+                    command.Metadata["doc_source_url_path"] = docSource;
+                    command.Metadata["ms.giturl"] = string.Format("{0}/blob/{1}/{2}", Options.RepoOfSource, Options.Branch, docSource);
+                    command.Metadata["ms.gitcommit"] = string.Format("{0}/commit/{1}", Options.RepoOfSource, DocCommitIdMap[docSource]);
+                }
+                else
+                {
+                    command.Metadata["doc_source_url_repo"] = Options.RepoOfSource;
+                    command.Metadata["doc_source_url_path"] = docSource;
+                }
             }
 
             var examples = xElement.XPathSelectElements("desc_content/desc[@desctype='cliexample']");

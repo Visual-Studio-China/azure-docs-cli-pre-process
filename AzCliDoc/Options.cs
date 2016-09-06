@@ -17,8 +17,14 @@ namespace AzCliDocPreprocessor
         [Option('d', "dest", Required = true)]
         public string DestDirectory { get; set; }
 
-        [Option('r', "repo", Required = false, DefaultValue = "https://github.com/Azure/azure-cli/blob/master/")]
+        [Option('r', "repo", Required = false, DefaultValue = "https://github.com/Azure/azure-cli")]
         public string RepoOfSource{ get; set; }
+
+        [Option('b', "branch", Required = false, DefaultValue = "master")]
+        public string Branch { get; set; }
+
+        [Option('c', "commitFile", Required =false)]
+        public string DocCommitMapFile { get; set; }
 
         [Option('i', "ignore", Required = false, DefaultValue = true, HelpText = "Whether ignore unknown property in xml")]
         public bool IgnoreUnknownProperty { get; set; }
