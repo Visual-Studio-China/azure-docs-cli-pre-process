@@ -245,8 +245,8 @@ namespace AzCliDocPreprocessor
                 {
                     command.Metadata["doc_source_url_repo"] = string.Format("{0}/blob/{1}/", Options.RepoOfSource, Options.Branch);
                     command.Metadata["doc_source_url_path"] = docSource;
-                    command.Metadata["ms.giturl"] = string.Format("{0}/blob/{1}/{2}", Options.RepoOfSource, Options.Branch, docSource);
-                    command.Metadata["ms.gitcommit"] = string.Format("{0}/commit/{1}", Options.RepoOfSource, DocCommitIdMap[docSource]);
+                    command.Metadata["original_content_git_url"] = string.Format("{0}/blob/{1}/{2}", Options.RepoOfSource, Options.Branch, docSource);
+                    command.Metadata["gitcommit"] = string.Format("{0}/commit/{1}", Options.RepoOfSource, DocCommitIdMap[docSource]);
                 }
                 else
                 {
