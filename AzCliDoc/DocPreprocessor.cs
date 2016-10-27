@@ -215,7 +215,9 @@ namespace AzCliDocPreprocessor
                 newRef.Value = reference.Value;
                 reference.ReplaceWith(newRef);
             }
-            return String.Concat(element.Nodes());
+
+            var value = String.Concat(element.Nodes());
+            return value.Replace("</a><a", "</a> <a");
         }
 
         private AzureCliViewModel ExtractCommand(XElement xElement, bool isGroup)
@@ -236,7 +238,8 @@ namespace AzCliDocPreprocessor
             };
 
             command.Name = name;
-            command.Uid = ids[ids.Length - 1];
+            command.HtmlId = ids[ids.Length - 1];
+            command.Uid = name.Replace(' ', '_');
             command.Summary = summary;
             command.Description = description;
             if(!string.IsNullOrEmpty(docSource))

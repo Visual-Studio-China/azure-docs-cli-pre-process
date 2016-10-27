@@ -9,6 +9,10 @@
     [Serializable]
     public class AzureCliViewModel : AzureCliViewModelBase
     {
+        [YamlMember(Alias = "htmlId")]
+        [JsonProperty("htmlId")]
+        public string HtmlId { get; set; }
+
         [YamlMember(Alias = "usage")]
         [JsonProperty("usage")]
         public string Usage { get; set; }
