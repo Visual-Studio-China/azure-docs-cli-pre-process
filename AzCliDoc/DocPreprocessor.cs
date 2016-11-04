@@ -210,14 +210,30 @@ namespace AzCliDocPreprocessor
 
             foreach(var reference in refs.ToArray())
             {
-                var newRef = XElement.Parse("<a href=''></a>");
-                newRef.Attribute("href").Value = reference.Attribute("refuri")?.Value;
-                newRef.Value = reference.Value;
-                reference.ReplaceWith(newRef);
+                if (IsValidUrl(reference.Value))
+                {
+                    var newRef = XElement.Parse("<a href=''></a>");
+                    newRef.Attribute("href").Value = reference.Attribute("refuri")?.Value;
+                    newRef.Value = reference.Value;
+                    reference.ReplaceWith(newRef);
+                }
+                else
+                {
+                    var textNode = new XText(reference.Value);
+                    reference.ReplaceWith(textNode);
+                }
             }
 
             var value = String.Concat(element.Nodes());
             return value.Replace("</a><a", "</a> <a");
+        }
+
+        private bool IsValidUrl(string url)
+        {
+            if (string.IsNullOrWhiteSpace(url))
+                return false;
+
+            return !url.EndsWith("://") && Uri.IsWellFormedUriString(url, UriKind.Absolute);
         }
 
         private AzureCliViewModel ExtractCommand(XElement xElement, bool isGroup)
