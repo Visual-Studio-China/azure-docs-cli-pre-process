@@ -8,7 +8,7 @@ namespace AzCliDocPreprocessor
         [Option('e', "ext", Required = false, DefaultValue = ".pycliyml")]
         public string DocExtension { get; set; }
 
-        [Option('t', "toc", Required = false, DefaultValue = "toc.md")]
+        [Option('t', "toc", Required = false, DefaultValue = "refTOC.md")]
         public string TocFileName { get; set; }
 
         [Option('s', "source", Required = true)]
