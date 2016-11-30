@@ -14,7 +14,7 @@ namespace AzCliDocPreprocessor
     internal class DocPreprocessor
     {
         private const string AzGroupName = "az";
-        private const string FormalAzGroupName = "Azure";
+        private const string FormalAzGroupName = "Azure Ref Commands";
         private List<AzureCliViewModel> CommandGroups { get; set; }
         private Dictionary<string, AzureCliViewModel> NameCommandGroupMap { get; set; }
         private Dictionary<string, CommitInfo> DocCommitIdMap { get; set; }
