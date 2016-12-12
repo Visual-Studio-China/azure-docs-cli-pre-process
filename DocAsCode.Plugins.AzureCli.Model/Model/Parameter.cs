@@ -1,4 +1,4 @@
-﻿namespace Microsoft.DocAsCode.EntityModel.Plugins.OpenPublishing.AzureCli.Model
+﻿namespace Microsoft.DocAsCode.EntityModel.Plugins.OpenPublishing.AzureCli
 {
     using System;
     using System.Collections.Generic;
@@ -23,7 +23,7 @@
 
         [YamlMember(Alias = "isRequired")]
         [JsonProperty("isRequired")]
-        public bool IsRequired { get; set; }
+        public string IsRequired { get; set; }
 
         [YamlMember(Alias = "summary")]
         [JsonProperty("summary")]
@@ -39,11 +39,11 @@
 
         [YamlMember(Alias = "variableLength")]
         [JsonProperty("variableLength")]
-        public bool VariableLength { get; set; }
+        public string VariableLength { get; set; }
 
         [YamlMember(Alias = "acceptWildcardCharacters")]
         [JsonProperty("acceptWildcardCharacters")]
-        public bool AcceptWildcardCharacters { get; set; }
+        public string AcceptWildcardCharacters { get; set; }
 
         [YamlMember(Alias = "pipelineInput ")]
         [JsonProperty("pipelineInput")]
@@ -55,19 +55,19 @@
 
         [YamlMember(Alias = "aliases")]
         [JsonProperty("aliases")]
-        public string[] Aliases { get; set; }
+        public string Aliases { get; set; }
 
         [YamlMember(Alias = "isValueRequired")]
         [JsonProperty("isValueRequired")]
-        public bool IsValueRequired { get; set; }
+        public string IsValueRequired { get; set; }
 
         [YamlMember(Alias = "valueVariableLength")]
         [JsonProperty("valueVariableLength")]
-        public bool ValueVariableLength { get; set; }
+        public string ValueVariableLength { get; set; }
 
         [YamlMember(Alias = "parameterValueGroup")]
         [JsonProperty("parameterValueGroup")]
-        public List<string> ParameterValueGroup { get; set; }
+        public string ParameterValueGroup { get; set; }
 
         [YamlMember(Alias = "valueFrom")]
         [JsonProperty("valueFrom")]

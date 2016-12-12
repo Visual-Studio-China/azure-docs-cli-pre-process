@@ -1,4 +1,4 @@
-﻿namespace Microsoft.DocAsCode.EntityModel.Plugins.OpenPublishing.AzureCli.Model
+﻿namespace Microsoft.DocAsCode.EntityModel.Plugins.OpenPublishing.AzureCli
 {
     using System;
     using System.Collections.Generic;

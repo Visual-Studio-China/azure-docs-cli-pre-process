@@ -1,4 +1,4 @@
-﻿using Microsoft.DocAsCode.EntityModel.Plugins.OpenPublishing.AzureCli.Model;
+﻿using Microsoft.DocAsCode.EntityModel.Plugins.OpenPublishing.AzureCli;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -158,13 +158,13 @@ namespace AzCliDocPreprocessor
                             cliArg.Description = fieldValue;
                             break;
                         case "required":
-                            cliArg.IsRequired = Boolean.Parse(fieldValue);
+                            cliArg.IsRequired = fieldValue;
                             break;
                         case "default":
                             cliArg.DefaultValue = fieldValue;
                             break;
                         case "allowed values":
-                            cliArg.ParameterValueGroup = new List<string>(new string[]{ fieldValue });
+                            cliArg.ParameterValueGroup = fieldValue;
                             break;
                         case "values from":
                             cliArg.ValueFrom = fieldValue;

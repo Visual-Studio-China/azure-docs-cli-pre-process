@@ -1,4 +1,4 @@
-﻿namespace Microsoft.DocAsCode.EntityModel.Plugins.OpenPublishing.AzureCli.Model
+﻿namespace Microsoft.DocAsCode.EntityModel.Plugins.OpenPublishing.AzureCli
 {
     using System;
     using System.Collections.Generic;
@@ -71,6 +71,6 @@
 
         [YamlMember(Alias = "children")]
         [JsonProperty("children")]
-        public List<AzureCliViewModel> Children { get; set; }
+        public List<AzureCliViewModel> Children { get; set; } = new List<AzureCliViewModel>();
     }
 }

@@ -37,6 +37,10 @@
     <StartupObject />
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="Microsoft.DocAsCode.YamlSerialization, Version=2.8.2.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\Microsoft.DocAsCode.YamlSerialization.2.8.2\lib\net452\Microsoft.DocAsCode.YamlSerialization.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
     <Reference Include="Newtonsoft.Json, Version=7.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
       <HintPath>..\packages\Newtonsoft.Json.7.0.1\lib\net45\Newtonsoft.Json.dll</HintPath>
       <Private>True</Private>
@@ -65,11 +69,6 @@
     <Compile Include="Model\SourceExtent.cs" />
     <Compile Include="Model\SourceRange.cs" />
     <Compile Include="Model\Syntax.cs" />
-  </ItemGroup>
-  <ItemGroup>
-    <PublishPluginPackages Include="opbuild.templates.azurecli.model.nuspec">
-      <SubType>Designer</SubType>
-    </PublishPluginPackages>
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Properties\" />

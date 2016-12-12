@@ -1,8 +1,9 @@
-﻿namespace Microsoft.DocAsCode.EntityModel.Plugins.OpenPublishing.AzureCli.Model
+﻿namespace Microsoft.DocAsCode.EntityModel.Plugins.OpenPublishing.AzureCli
 {
     using System;
     using System.Collections.Generic;
 
+    using Microsoft.DocAsCode.YamlSerialization;
     using Newtonsoft.Json;
     using YamlDotNet.Serialization;
 
@@ -12,6 +13,10 @@
         [YamlMember(Alias = "uid")]
         [JsonProperty("uid")]
         public string Uid { get; set; }
+
+        [YamlMember(Alias = "id")]
+        [JsonProperty("id")]
+        public string Id { get; set; }
 
         [YamlMember(Alias = "name")]
         [JsonProperty("name")]
@@ -29,6 +34,7 @@
         [JsonProperty("summary")]
         public string Summary { get; set; }
 
+        [ExtensibleMember]
         [JsonExtensionData]
         public Dictionary<string, object> Metadata { get; set; } = new Dictionary<string, object>();
     }
