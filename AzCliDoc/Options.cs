@@ -29,6 +29,9 @@ namespace AzCliDocPreprocessor
         [Option('i', "ignore", Required = false, DefaultValue = true, HelpText = "Whether ignore unknown property in xml")]
         public bool IgnoreUnknownProperty { get; set; }
 
+        [Option('v', "version", Required = false, DefaultValue = 0)]
+        public int Version { get; set; }
+
         [HelpOption]
         public string GetUsage()
         {

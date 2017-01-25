@@ -61,7 +61,9 @@
   <ItemGroup>
     <Compile Include="Model\AzureCliViewModel.cs" />
     <Compile Include="Model\AzureCliViewModelBase.cs" />
+    <Compile Include="Model\CommandBasicInfo.cs" />
     <Compile Include="Model\Example.cs" />
+    <Compile Include="Model\GitInfo.cs" />
     <Compile Include="Model\InputOutput.cs" />
     <Compile Include="Model\Link.cs" />
     <Compile Include="Model\Option.cs" />

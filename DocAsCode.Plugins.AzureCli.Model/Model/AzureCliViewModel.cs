@@ -9,6 +9,10 @@
     [Serializable]
     public class AzureCliViewModel : AzureCliViewModelBase
     {
+        [YamlMember(Alias = "commandList")]
+        [JsonProperty("commandList")]
+        public List<CommandBasicInfo> CommandBasicInfoList { get; set; } = new List<CommandBasicInfo>();
+
         [YamlMember(Alias = "htmlId")]
         [JsonProperty("htmlId")]
         public string HtmlId { get; set; }
@@ -68,6 +72,10 @@
         [YamlMember(Alias = "parameters")]
         [JsonProperty("parameters")]
         public List<Parameter> Parameters { get; set; }
+
+        [YamlMember(Alias = "source")]
+        [JsonProperty("source")]
+        public RemoteGitInfo Source { get; set; }
 
         [YamlMember(Alias = "children")]
         [JsonProperty("children")]

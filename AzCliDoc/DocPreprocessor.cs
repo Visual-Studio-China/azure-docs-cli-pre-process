@@ -43,8 +43,36 @@ namespace AzCliDocPreprocessor
                 NameCommandGroupMap[groupName].Children.Add(commandEntry);
             }
 
+            //prepare command table
+            if(Options.Version == 1)
+            {
+                foreach(var commandGroup in CommandGroups)
+                {
+                    PrepareCommandBasicInfoList(commandGroup, commandGroup.Children, false);
+
+                    int groupWordCount = commandGroup.Name.Split(' ').Length;
+                    var subGroups = CommandGroups.FindAll(c => c.Name.Split(' ').Length == groupWordCount + 1 && c.Name.StartsWith(commandGroup.Name));
+                    PrepareCommandBasicInfoList(commandGroup, subGroups, true);
+                    commandGroup.CommandBasicInfoList.Sort((item1, item2) => string.CompareOrdinal(item1.Name, item2.Name));
+                }
+            }
+
             Save(Options.DestDirectory);
             return true;
+        }
+
+        private static void PrepareCommandBasicInfoList(AzureCliViewModel group, IList<AzureCliViewModel> subItems, bool isGroup)
+        {
+            foreach (var subItem in subItems)
+            {
+                group.CommandBasicInfoList.Add(new CommandBasicInfo
+                {
+                    Name = subItem.Name,
+                    Description = !string.IsNullOrEmpty(subItem.Summary) ? subItem.Summary : subItem.Description,
+                    HyperLink = isGroup ? subItem.HtmlId : "#" + subItem.HtmlId,
+                    IsGroup = isGroup
+                });
+            }
         }
 
         private void Initialize()
@@ -82,7 +110,7 @@ namespace AzCliDocPreprocessor
             }
 
             CommandGroups.Sort((group1, group2) => string.CompareOrdinal(group1.Name, group2.Name));
-
+            Dictionary<string, string> groupToFilePathMap = new Dictionary<string, string>();
             using (var tocWriter = new StreamWriter(Path.Combine(destDirectory, Options.TocFileName), false))
             {
                 var serializer = new Serializer();
@@ -94,6 +122,8 @@ namespace AzCliDocPreprocessor
                         serializer.Serialize(writer, group);
                     }
 
+                    groupToFilePathMap.Add(group.Name, relativeDocPath);
+
                     var builder = new StringBuilder();
                     builder.Append('#', group.Name.Count(c => c == ' ') + 1);
                     string tocName = string.Equals(group.Name, AzGroupName, StringComparison.OrdinalIgnoreCase) ? FormalAzGroupName : group.Name;
@@ -101,6 +131,43 @@ namespace AzCliDocPreprocessor
                     tocWriter.WriteLine(builder.ToString());
                 }
             }
+
+            if(Options.Version == 1)
+            {
+                var topGroup = NameCommandGroupMap[AzGroupName];
+                using (var tocWriter = new StreamWriter(Path.Combine(destDirectory, Options.TocFileName), false))
+                {
+                    PrepareToc(topGroup, tocWriter, groupToFilePathMap);
+                }
+            }
+        }
+
+        private void PrepareToc(AzureCliViewModel group, StreamWriter tocWriter, IDictionary<string, string> groupToFilePathMap)
+        {
+            var builder = new StringBuilder();
+            builder.Append('#', group.Name.Count(c => c == ' ') + 1);
+            string tocName = string.Equals(group.Name, AzGroupName, StringComparison.OrdinalIgnoreCase) ? FormalAzGroupName : group.Name;
+            builder.AppendFormat(" [{0}]({1})", tocName, groupToFilePathMap[group.Name]);
+            tocWriter.WriteLine(builder.ToString());
+            foreach(var subItem in group.CommandBasicInfoList)
+            {
+                if(subItem.IsGroup)
+                {
+                    PrepareToc(NameCommandGroupMap[subItem.Name], tocWriter, groupToFilePathMap);
+                }
+                else
+                {
+                    var subBuilder = new StringBuilder();
+                    subBuilder.Append('#', subItem.Name.Count(c => c == ' ') + 1);
+                    subBuilder.AppendFormat(" [{0}]({1}{2})", subItem.Name, groupToFilePathMap[group.Name], subItem.HyperLink);
+                    tocWriter.WriteLine(subBuilder.ToString());
+                }
+            }
+        }
+
+        private static string GetUid(string commandName)
+        {
+            return commandName.Replace(' ', '_');
         }
 
         private string PrepareDocFilePath(string destDirectory, string name)
@@ -255,27 +322,56 @@ namespace AzCliDocPreprocessor
 
             command.Name = name;
             command.HtmlId = ids[ids.Length - 1];
-            command.Uid = name.Replace(' ', '_');
+            command.Uid = GetUid(name);
             command.Summary = summary;
             command.Description = description;
             if(!string.IsNullOrEmpty(docSource))
             {
-                if (!string.IsNullOrEmpty(Options.DocCommitMapFile))
+                if (Options.Version == 0)
                 {
-                    command.Metadata["doc_source_url_repo"] = string.Format("{0}/blob/{1}/", Options.RepoOfSource, Options.Branch);
-                    command.Metadata["doc_source_url_path"] = docSource;
-                    command.Metadata["original_content_git_url"] = string.Format("{0}/blob/{1}/{2}", Options.RepoOfSource, Options.Branch, docSource);
-                    command.Metadata["gitcommit"] = string.Format("{0}/blob/{1}/{2}", Options.RepoOfSource, DocCommitIdMap[docSource].Commit, docSource);
+                    if (!string.IsNullOrEmpty(Options.DocCommitMapFile))
+                    {
+                        command.Metadata["doc_source_url_repo"] = string.Format("{0}/blob/{1}/", Options.RepoOfSource, Options.Branch);
+                        command.Metadata["doc_source_url_path"] = docSource;
+                        command.Metadata["original_content_git_url"] = string.Format("{0}/blob/{1}/{2}", Options.RepoOfSource, Options.Branch, docSource);
+                        command.Metadata["gitcommit"] = string.Format("{0}/blob/{1}/{2}", Options.RepoOfSource, DocCommitIdMap[docSource].Commit, docSource);
 
-                    var date = DocCommitIdMap[docSource].Date;
-                    command.Metadata["updated_at"] = date.ToString();
-                    command.Metadata["ms.date"] = date.ToShortDateString();
+                        var date = DocCommitIdMap[docSource].Date;
+                        command.Metadata["updated_at"] = date.ToString();
+                        command.Metadata["ms.date"] = date.ToShortDateString();
+                    }
+                    else
+                    {
+                        command.Metadata["doc_source_url_repo"] = Options.RepoOfSource;
+                        command.Metadata["doc_source_url_path"] = docSource;
+                    }
+                }
+                else if (Options.Version == 1)
+                {
+                    if (isGroup)
+                    {
+                        command.Metadata["doc_source_url_repo"] = string.Format("{0}/blob/{1}/", Options.RepoOfSource, Options.Branch);
+                        command.Metadata["doc_source_url_path"] = docSource;
+                        command.Metadata["original_content_git_url"] = string.Format("{0}/blob/{1}/{2}", Options.RepoOfSource, Options.Branch, docSource);
+                        command.Metadata["gitcommit"] = string.Format("{0}/blob/{1}/{2}", Options.RepoOfSource, DocCommitIdMap[docSource].Commit, docSource);
+
+                        var date = DocCommitIdMap[docSource].Date;
+                        command.Metadata["updated_at"] = date.ToString();
+                        command.Metadata["ms.date"] = date.ToShortDateString();
+                    }
+
+                    command.Source = new RemoteGitInfo()
+                    {
+                        Remote = new GitInfo()
+                        {
+                            Repository = Options.RepoOfSource + ".git",
+                            Branch = Options.Branch,
+                            Path = docSource
+                        }
+                    };
                 }
                 else
-                {
-                    command.Metadata["doc_source_url_repo"] = Options.RepoOfSource;
-                    command.Metadata["doc_source_url_path"] = docSource;
-                }
+                    throw new ArgumentException("Invalid Version");
             }
 
             var examples = xElement.XPathSelectElements("desc_content/desc[@desctype='cliexample']");
