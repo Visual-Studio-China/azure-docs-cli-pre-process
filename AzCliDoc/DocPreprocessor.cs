@@ -16,6 +16,7 @@ namespace AzCliDocPreprocessor
         private const string AzGroupName = "az";
         private const string FormalAzGroupName = "Reference";
         private List<AzureCliViewModel> CommandGroups { get; set; }
+        private List<string> TocLines { get; set; }
         private Dictionary<string, AzureCliViewModel> NameCommandGroupMap { get; set; }
         private Dictionary<string, CommitInfo> DocCommitIdMap { get; set; }
         private Options Options { get; set; }
@@ -27,7 +28,7 @@ namespace AzCliDocPreprocessor
 
             var xDoc = XDocument.Load(Options.SourceXmlPath);
             var groups = xDoc.Root.XPathSelectElements("desc[@desctype='cligroup']");
-            foreach(var group in groups)
+            foreach (var group in groups)
             {
                 var commandGroup = ExtractCommandGroup(group);
                 CommandGroups.Add(commandGroup);
@@ -43,18 +44,15 @@ namespace AzCliDocPreprocessor
                 NameCommandGroupMap[groupName].Children.Add(commandEntry);
             }
 
-            //prepare command table
-            if(Options.Version == 1)
+            //prepare command table to contain descendants, from bottom to top
+            CommandGroups.Sort((group1, group2) => GetWordCount(group2.Name).CompareTo(GetWordCount(group1.Name)));
+            foreach (var commandGroup in CommandGroups)
             {
-                foreach(var commandGroup in CommandGroups)
-                {
-                    PrepareCommandBasicInfoList(commandGroup, commandGroup.Children, false);
-
-                    int groupWordCount = commandGroup.Name.Split(' ').Length;
-                    var subGroups = CommandGroups.FindAll(c => c.Name.Split(' ').Length == groupWordCount + 1 && c.Name.StartsWith(commandGroup.Name));
-                    PrepareCommandBasicInfoList(commandGroup, subGroups, true);
-                    commandGroup.CommandBasicInfoList.Sort((item1, item2) => string.CompareOrdinal(item1.Name, item2.Name));
-                }
+                PrepareCommandBasicInfoList(commandGroup, commandGroup.Children, false);
+                int groupWordCount = GetWordCount(commandGroup.Name);
+                var subGroups = GetSubGroups(commandGroup.Name, groupWordCount);
+                PrepareCommandBasicInfoList(commandGroup, subGroups, true);
+                commandGroup.CommandBasicInfoList.Sort((item1, item2) => string.CompareOrdinal(item1.Name, item2.Name));
             }
 
             Save(Options.DestDirectory);
@@ -72,6 +70,20 @@ namespace AzCliDocPreprocessor
                     HyperLink = isGroup ? subItem.HtmlId : "#" + subItem.HtmlId,
                     IsGroup = isGroup
                 });
+
+                if(isGroup && !string.Equals(group.Name, AzGroupName, StringComparison.OrdinalIgnoreCase))
+                {
+                    foreach(var basicInfo in subItem.CommandBasicInfoList)
+                    {
+                        group.CommandBasicInfoList.Add(new CommandBasicInfo
+                        {
+                            Name = basicInfo.Name,
+                            Description = basicInfo.Description,
+                            HyperLink = basicInfo.HyperLink[0] != '#' ? string.Format("{0}/{1}", subItem.HtmlId, basicInfo.HyperLink) : subItem.HtmlId + basicInfo.HyperLink,
+                            IsGroup = basicInfo.IsGroup
+                        });
+                    }
+                }
             }
         }
 
@@ -100,69 +112,73 @@ namespace AzCliDocPreprocessor
 
             CommandGroups = new List<AzureCliViewModel>();
             NameCommandGroupMap = new Dictionary<string, AzureCliViewModel>();
-        }
-
-        private void Save(string destDirectory)
-        {
+            TocLines = new List<string>();
             if (!Directory.Exists(Options.DestDirectory))
             {
                 Directory.CreateDirectory(Options.DestDirectory);
             }
-
-            CommandGroups.Sort((group1, group2) => string.CompareOrdinal(group1.Name, group2.Name));
-            Dictionary<string, string> groupToFilePathMap = new Dictionary<string, string>();
-            using (var tocWriter = new StreamWriter(Path.Combine(destDirectory, Options.TocFileName), false))
-            {
-                var serializer = new Serializer();
-                foreach (var group in CommandGroups)
-                {
-                    var relativeDocPath = PrepareDocFilePath(destDirectory, group.Name);
-                    using (var writer = new StreamWriter(Path.Combine(destDirectory, relativeDocPath), false))
-                    {
-                        serializer.Serialize(writer, group);
-                    }
-
-                    groupToFilePathMap.Add(group.Name, relativeDocPath);
-
-                    var builder = new StringBuilder();
-                    builder.Append('#', group.Name.Count(c => c == ' ') + 1);
-                    string tocName = string.Equals(group.Name, AzGroupName, StringComparison.OrdinalIgnoreCase) ? FormalAzGroupName : group.Name;
-                    builder.AppendFormat(" [{0}]({1})", tocName, relativeDocPath);
-                    tocWriter.WriteLine(builder.ToString());
-                }
-            }
-
-            if(Options.Version == 1)
-            {
-                var topGroup = NameCommandGroupMap[AzGroupName];
-                using (var tocWriter = new StreamWriter(Path.Combine(destDirectory, Options.TocFileName), false))
-                {
-                    PrepareToc(topGroup, tocWriter, groupToFilePathMap);
-                }
-            }
         }
 
-        private void PrepareToc(AzureCliViewModel group, StreamWriter tocWriter, IDictionary<string, string> groupToFilePathMap)
+        private void Save(string destDirectory)
+        {
+            //save group
+            CommandGroups.Sort((group1, group2) => string.CompareOrdinal(group1.Name, group2.Name));
+            Dictionary<string, string> groupToFilePathMap = new Dictionary<string, string>();
+            var serializer = new Serializer();
+            foreach (var commandGroup in CommandGroups)
+            {
+                var relativeDocPath = PrepareDocFilePath(Options.DestDirectory, commandGroup.Name);
+                groupToFilePathMap.Add(commandGroup.Name, relativeDocPath);
+                using (var writer = new StreamWriter(Path.Combine(destDirectory, relativeDocPath), false))
+                {
+                    serializer.Serialize(writer, commandGroup);
+                }
+            }
+
+            PrepareToc(NameCommandGroupMap[AzGroupName], groupToFilePathMap);
+            File.WriteAllLines(Path.Combine(destDirectory, Options.TocFileName), TocLines);
+        }
+
+        private void PrepareToc(AzureCliViewModel group, IDictionary<string, string> groupToFilePathMap)
         {
             var builder = new StringBuilder();
-            builder.Append('#', group.Name.Count(c => c == ' ') + 1);
+            int groupWordCount = GetWordCount(group.Name);
+            builder.Append('#', groupWordCount);
             string tocName = string.Equals(group.Name, AzGroupName, StringComparison.OrdinalIgnoreCase) ? FormalAzGroupName : group.Name;
             builder.AppendFormat(" [{0}]({1})", tocName, groupToFilePathMap[group.Name]);
-            tocWriter.WriteLine(builder.ToString());
-            foreach(var subItem in group.CommandBasicInfoList)
+            TocLines.Add(builder.ToString());
+
+            //get all immediate children
+            List<AzureCliViewModel> subItems = new List<AzureCliViewModel>();
+            subItems.AddRange(group.Children);
+            var subGroups = GetSubGroups(group.Name, groupWordCount);
+            subItems.AddRange(subGroups);
+            subItems.Sort((item1, item2) => string.CompareOrdinal(item1.Name, item2.Name));
+
+            foreach (var subItem in subItems)
             {
-                if(subItem.IsGroup)
+                if(subItem.CommandBasicInfoList.Count > 0)
                 {
-                    PrepareToc(NameCommandGroupMap[subItem.Name], tocWriter, groupToFilePathMap);
+                    PrepareToc(NameCommandGroupMap[subItem.Name], groupToFilePathMap);
                 }
                 else
                 {
                     var subBuilder = new StringBuilder();
-                    subBuilder.Append('#', subItem.Name.Count(c => c == ' ') + 1);
-                    subBuilder.AppendFormat(" [{0}]({1}{2})", subItem.Name, groupToFilePathMap[group.Name], subItem.HyperLink);
-                    tocWriter.WriteLine(subBuilder.ToString());
+                    subBuilder.Append('#', GetWordCount(subItem.Name));
+                    subBuilder.AppendFormat(" [{0}]({1}#{2})", subItem.Name, groupToFilePathMap[group.Name], subItem.HtmlId);
+                    TocLines.Add(subBuilder.ToString());
                 }
             }
+        }
+
+        private List<AzureCliViewModel> GetSubGroups(string groupName, int groupWordCount)
+        {
+            return CommandGroups.FindAll(c => GetWordCount(c.Name) == groupWordCount + 1 && c.Name.StartsWith(groupName + " "));
+        }
+
+        private static int GetWordCount(string name)
+        {
+            return name.Count(c => c == ' ') + 1;
         }
 
         private static string GetUid(string commandName)
@@ -172,7 +188,7 @@ namespace AzCliDocPreprocessor
 
         private string PrepareDocFilePath(string destDirectory, string name)
         {
-            var pathSegments = name.Split(new[] { ' ' });
+            var pathSegments = name.Split(' ');
             if (pathSegments.Length == 1)
                 return "index" + Options.DocExtension;
 
@@ -325,53 +341,29 @@ namespace AzCliDocPreprocessor
             command.Uid = GetUid(name);
             command.Summary = summary;
             command.Description = description;
-            if(!string.IsNullOrEmpty(docSource))
+            if (!string.IsNullOrEmpty(docSource))
             {
-                if (Options.Version == 0)
+                if (isGroup)
                 {
-                    if (!string.IsNullOrEmpty(Options.DocCommitMapFile))
-                    {
-                        command.Metadata["doc_source_url_repo"] = string.Format("{0}/blob/{1}/", Options.RepoOfSource, Options.Branch);
-                        command.Metadata["doc_source_url_path"] = docSource;
-                        command.Metadata["original_content_git_url"] = string.Format("{0}/blob/{1}/{2}", Options.RepoOfSource, Options.Branch, docSource);
-                        command.Metadata["gitcommit"] = string.Format("{0}/blob/{1}/{2}", Options.RepoOfSource, DocCommitIdMap[docSource].Commit, docSource);
+                    command.Metadata["doc_source_url_repo"] = string.Format("{0}/blob/{1}/", Options.RepoOfSource, Options.Branch);
+                    command.Metadata["doc_source_url_path"] = docSource;
+                    command.Metadata["original_content_git_url"] = string.Format("{0}/blob/{1}/{2}", Options.RepoOfSource, Options.Branch, docSource);
+                    command.Metadata["gitcommit"] = string.Format("{0}/blob/{1}/{2}", Options.RepoOfSource, DocCommitIdMap[docSource].Commit, docSource);
 
-                        var date = DocCommitIdMap[docSource].Date;
-                        command.Metadata["updated_at"] = date.ToString();
-                        command.Metadata["ms.date"] = date.ToShortDateString();
-                    }
-                    else
-                    {
-                        command.Metadata["doc_source_url_repo"] = Options.RepoOfSource;
-                        command.Metadata["doc_source_url_path"] = docSource;
-                    }
+                    var date = DocCommitIdMap[docSource].Date;
+                    command.Metadata["updated_at"] = date.ToString();
+                    command.Metadata["ms.date"] = date.ToShortDateString();
                 }
-                else if (Options.Version == 1)
+
+                command.Source = new RemoteGitInfo()
                 {
-                    if (isGroup)
+                    Remote = new GitInfo()
                     {
-                        command.Metadata["doc_source_url_repo"] = string.Format("{0}/blob/{1}/", Options.RepoOfSource, Options.Branch);
-                        command.Metadata["doc_source_url_path"] = docSource;
-                        command.Metadata["original_content_git_url"] = string.Format("{0}/blob/{1}/{2}", Options.RepoOfSource, Options.Branch, docSource);
-                        command.Metadata["gitcommit"] = string.Format("{0}/blob/{1}/{2}", Options.RepoOfSource, DocCommitIdMap[docSource].Commit, docSource);
-
-                        var date = DocCommitIdMap[docSource].Date;
-                        command.Metadata["updated_at"] = date.ToString();
-                        command.Metadata["ms.date"] = date.ToShortDateString();
+                        Repository = Options.RepoOfSource + ".git",
+                        Branch = Options.Branch,
+                        Path = docSource
                     }
-
-                    command.Source = new RemoteGitInfo()
-                    {
-                        Remote = new GitInfo()
-                        {
-                            Repository = Options.RepoOfSource + ".git",
-                            Branch = Options.Branch,
-                            Path = docSource
-                        }
-                    };
-                }
-                else
-                    throw new ArgumentException("Invalid Version");
+                };
             }
 
             var examples = xElement.XPathSelectElements("desc_content/desc[@desctype='cliexample']");
