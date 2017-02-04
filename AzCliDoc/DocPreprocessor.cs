@@ -61,13 +61,14 @@ namespace AzCliDocPreprocessor
 
         private static void PrepareCommandBasicInfoList(AzureCliViewModel group, IList<AzureCliViewModel> subItems, bool isGroup)
         {
+            bool isTopGroup = string.Equals(group.Name, AzGroupName, StringComparison.OrdinalIgnoreCase);
             foreach (var subItem in subItems)
             {
                 group.CommandBasicInfoList.Add(new CommandBasicInfo
                 {
                     Name = subItem.Name,
                     Description = !string.IsNullOrEmpty(subItem.Summary) ? subItem.Summary : subItem.Description,
-                    HyperLink = isGroup ? $"{group.HtmlId}/{subItem.HtmlId}" : $"{group.HtmlId}#{subItem.HtmlId}",
+                    HyperLink =  isTopGroup ? (isGroup ? $"{subItem.HtmlId}" : $"#{subItem.HtmlId}") : (isGroup ? $"{group.HtmlId}/{subItem.HtmlId}" : $"{group.HtmlId}#{subItem.HtmlId}"),
                     IsGroup = isGroup
                 });
 
