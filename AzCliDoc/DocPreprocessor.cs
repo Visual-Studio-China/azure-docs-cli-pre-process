@@ -67,7 +67,7 @@ namespace AzCliDocPreprocessor
                 {
                     Name = subItem.Name,
                     Description = !string.IsNullOrEmpty(subItem.Summary) ? subItem.Summary : subItem.Description,
-                    HyperLink = isGroup ? subItem.HtmlId : "#" + subItem.HtmlId,
+                    HyperLink = isGroup ? $"{group.HtmlId}/{subItem.HtmlId}" : $"{group.HtmlId}#{subItem.HtmlId}",
                     IsGroup = isGroup
                 });
 
@@ -79,7 +79,7 @@ namespace AzCliDocPreprocessor
                         {
                             Name = basicInfo.Name,
                             Description = basicInfo.Description,
-                            HyperLink = basicInfo.HyperLink[0] != '#' ? string.Format("{0}/{1}", subItem.HtmlId, basicInfo.HyperLink) : subItem.HtmlId + basicInfo.HyperLink,
+                            HyperLink = $"{group.HtmlId}/{basicInfo.HyperLink}",
                             IsGroup = basicInfo.IsGroup
                         });
                     }
