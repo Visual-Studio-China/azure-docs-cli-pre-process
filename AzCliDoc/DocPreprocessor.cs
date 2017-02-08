@@ -248,7 +248,7 @@ namespace AzCliDocPreprocessor
                             cliArg.DefaultValue = fieldValue;
                             break;
                         case "allowed values":
-                            cliArg.ParameterValueGroup = fieldValue;
+                            cliArg.ParameterValueGroup = QuoteValueIfNecessary(fieldValue);
                             break;
                         case "values from":
                             cliArg.ValueFrom = fieldValue;
@@ -271,6 +271,33 @@ namespace AzCliDocPreprocessor
                 command.Parameters.Add(cliArg);
             }
             return command;
+        }
+
+        /// <summary>
+        /// Need to convert value from 'item1', 'item2' to '''item1'', ''item2'''
+        /// </summary>
+        /// <param name="fieldValue"></param>
+        /// <returns></returns>
+        private string QuoteValueIfNecessary(string fieldValue)
+        {
+            if (string.IsNullOrEmpty(fieldValue))
+                return fieldValue;
+
+            var subFields = fieldValue.Split(',');
+            if(subFields.Length > 1)
+            {
+                char first = subFields[0][0];
+                if(first == '\'')
+                {
+                    fieldValue = fieldValue.Replace("'", "''");
+                    fieldValue = $"'{fieldValue}'";
+                }
+                else if(first == '"')
+                {
+                    fieldValue = $"'{fieldValue}'";
+                }
+            }
+            return fieldValue;
         }
 
         private string ExtractFieldValue(XElement field)
