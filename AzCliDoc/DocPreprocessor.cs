@@ -2,12 +2,14 @@
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Web.Script.Serialization;
 using System.Xml.Linq;
 using System.Xml.XPath;
-using YamlDotNet.Serialization;
+using Microsoft.DocAsCode.Common;
 
 namespace AzCliDocPreprocessor
 {
@@ -15,11 +17,15 @@ namespace AzCliDocPreprocessor
     {
         private const string AzGroupName = "az";
         private const string FormalAzGroupName = "Reference";
+        private const string YamlMimeProcessor = "### YamlMime:UniversalReference";
         private List<AzureCliViewModel> CommandGroups { get; set; }
-        private List<string> TocLines { get; set; }
         private Dictionary<string, AzureCliViewModel> NameCommandGroupMap { get; set; }
         private Dictionary<string, CommitInfo> DocCommitIdMap { get; set; }
         private Options Options { get; set; }
+        private Dictionary<string, AzureCliUniversalViewModel> UniversalCommandGroups { get; set; } = new Dictionary<string, AzureCliUniversalViewModel>();
+        private List<AzureCliUniversalParameter> GlobalParameters { get; set; } = new List<AzureCliUniversalParameter>();
+        private Dictionary<string, TocTitleMappings> TitleMappings { get; set; } = new Dictionary<string, TocTitleMappings>();
+        private Dictionary<string, StringBuilder> TocFileContent { get; set; } = new Dictionary<string, StringBuilder>();
 
         public bool Run(Options options)
         {
@@ -38,10 +44,21 @@ namespace AzCliDocPreprocessor
             var commands = xDoc.Root.XPathSelectElements("desc[@desctype='clicommand']");
             foreach (var command in commands)
             {
-                var commandEntry = ExtractCommandEntry(command);
+                string groupName = null;
+                try
+                {
+                    var commandEntry = ExtractCommandEntry(command);
 
-                var groupName = commandEntry.Name.Substring(0, commandEntry.Name.LastIndexOf(' '));
-                NameCommandGroupMap[groupName].Children.Add(commandEntry);
+                    groupName = commandEntry.Name.Substring(0, commandEntry.Name.LastIndexOf(' '));
+                    NameCommandGroupMap[groupName].Children.Add(commandEntry);
+                }
+                catch (Exception ex)
+                {
+                    if (ex.Message.Contains("The given key was not present in the dictionary"))
+                        System.Console.WriteLine(groupName);
+                    else
+                        System.Console.WriteLine(ex.Message);
+                }
             }
 
             //prepare command table to contain descendants, from bottom to top
@@ -53,6 +70,62 @@ namespace AzCliDocPreprocessor
                 var subGroups = GetSubGroups(commandGroup.Name, groupWordCount);
                 PrepareCommandBasicInfoList(commandGroup, subGroups, true);
                 commandGroup.CommandBasicInfoList.Sort((item1, item2) => string.CompareOrdinal(item1.Name, item2.Name));
+            }
+
+            // Prepares universal yml object list
+            foreach (var commandGroup in CommandGroups)
+            {
+                List<AzureCliUniversalItem> items = new List<AzureCliUniversalItem>();
+                items.Add(new AzureCliUniversalItem()
+                {
+                    Uid = commandGroup.Uid,
+                    Name = commandGroup.Name,
+                    Langs = new List<string>() { "azurecli" },
+                    Summary = commandGroup.Summary,
+                    Children = commandGroup.Children.Select(x => x.Uid).ToList()
+                });
+                foreach (AzureCliViewModel commandGroupChild in commandGroup.Children)
+                {
+                    AzureCliUniversalItem azureCliUniversalItem = new AzureCliUniversalItem()
+                    {
+                        Uid = commandGroupChild.Uid,
+                        Name = commandGroupChild.Name,
+                        Langs = new List<string>() { "azurecli" },
+                        Summary = commandGroupChild.Summary
+                    };
+                    if (null != commandGroupChild.Parameters && 0 != commandGroupChild.Parameters.Count)
+                    {
+                        azureCliUniversalItem.Parameters = (from parameterItem in commandGroupChild.Parameters
+                                                            select new AzureCliUniversalParameter { Name = parameterItem.Name, DefaultValue = parameterItem.DefaultValue,
+                                                                IsRequired = bool.Parse(parameterItem.IsRequired), Summary = parameterItem.Summary,
+                                                                ParameterValueGroup = parameterItem.ParameterValueGroup, ValueFrom = parameterItem.ValueFrom }).Except(GlobalParameters, new AzureCliUniversalParameterComparer()).ToList();
+                    }
+                    if (null != commandGroupChild.Examples && 0 != commandGroupChild.Examples.Count)
+                    {
+                        azureCliUniversalItem.Examples = (from exampleItem in commandGroupChild.Examples
+                                                          select new AzureCliUniversalExample { Summary = exampleItem.Title, Syntax = new AzureCliUniversalSyntax() { Content = exampleItem.Code } }).ToList();
+                    }
+                    if (null != commandGroupChild.Source && null != commandGroupChild.Source.Remote)
+                        azureCliUniversalItem.Source = new AzureCliUniversalSource()
+                        {
+                            Path = commandGroupChild.Source.Remote.Path,
+                            Remote = new AzureCliUniversalRemote()
+                            {
+                                Path = commandGroupChild.Source.Remote.Path, Branch = commandGroupChild.Source.Remote.Branch, Repo = commandGroupChild.Source.Remote.Repository
+                            }
+                        };
+                    items.Add(azureCliUniversalItem);
+                }
+
+                AzureCliUniversalViewModel universalViewModel = new AzureCliUniversalViewModel()
+                {
+                    GlobalParameters = GetGlobalParameters(),
+                    Commands = (from commandGroupBasicItem in commandGroup.CommandBasicInfoList
+                                select new AzureCliUniversalCommand { Uid = GetUid(commandGroupBasicItem.Name), Name = commandGroupBasicItem.Name, Summary = commandGroupBasicItem.Description })
+                               .ToList(),
+                    Items = items
+                };
+                UniversalCommandGroups.Add(commandGroup.Name, universalViewModel);
             }
 
             Save(Options.DestDirectory);
@@ -113,11 +186,12 @@ namespace AzCliDocPreprocessor
 
             CommandGroups = new List<AzureCliViewModel>();
             NameCommandGroupMap = new Dictionary<string, AzureCliViewModel>();
-            TocLines = new List<string>();
             if (!Directory.Exists(Options.DestDirectory))
             {
                 Directory.CreateDirectory(Options.DestDirectory);
             }
+            GlobalParameters = GetGlobalParameters();
+            TitleMappings = GetTitleMappings();
         }
 
         private void Save(string destDirectory)
@@ -125,29 +199,42 @@ namespace AzCliDocPreprocessor
             //save group
             CommandGroups.Sort((group1, group2) => string.CompareOrdinal(group1.Name, group2.Name));
             Dictionary<string, string> groupToFilePathMap = new Dictionary<string, string>();
-            var serializer = new Serializer();
-            foreach (var commandGroup in CommandGroups)
+            foreach (var commandGroup in UniversalCommandGroups)
             {
-                var relativeDocPath = PrepareDocFilePath(Options.DestDirectory, commandGroup.Name);
-                groupToFilePathMap.Add(commandGroup.Name, relativeDocPath);
+                var relativeDocPath = PrepareDocFilePath(Options.DestDirectory, commandGroup.Key);
+                groupToFilePathMap.Add(commandGroup.Key, relativeDocPath.Replace('\\', '/'));
                 using (var writer = new StreamWriter(Path.Combine(destDirectory, relativeDocPath), false))
                 {
-                    serializer.Serialize(writer, commandGroup);
+                    writer.WriteLine(YamlMimeProcessor);
+                    YamlUtility.Serialize(writer, commandGroup.Value);
                 }
             }
 
             PrepareToc(NameCommandGroupMap[AzGroupName], groupToFilePathMap);
-            File.WriteAllLines(Path.Combine(destDirectory, Options.TocFileName), TocLines);
+            File.WriteAllLines(Path.Combine(destDirectory, Options.TocFileName), TocFileContent.OrderBy(x => x.Key).Select(x => x.Value.ToString()).ToList());
         }
 
-        private void PrepareToc(AzureCliViewModel group, IDictionary<string, string> groupToFilePathMap)
+        private void PrepareToc(AzureCliViewModel group, IDictionary<string, string> groupToFilePathMap, string parentName = "", string parentSortKey = "")
         {
             var builder = new StringBuilder();
             int groupWordCount = GetWordCount(group.Name);
+            string tocName = null;
+            string subTocName = null;
+            string sortKey = null;
+
             builder.Append('#', groupWordCount);
-            string tocName = string.Equals(group.Name, AzGroupName, StringComparison.OrdinalIgnoreCase) ? FormalAzGroupName : group.Name;
-            builder.AppendFormat(" [{0}]({1})", tocName, groupToFilePathMap[group.Name]);
-            TocLines.Add(builder.ToString());
+            if (string.Equals(group.Name, AzGroupName, StringComparison.OrdinalIgnoreCase))
+            {
+                tocName = FormalAzGroupName;
+                builder.AppendFormat(" [{0}]({1})", tocName, groupToFilePathMap[group.Name]);
+            }
+            else
+            {
+                tocName = TitleMappings.ContainsKey(group.Name) ? TitleMappings[group.Name].TocTitle : group.Name.Replace(parentName, "").Trim();
+                builder.AppendFormat(" [{0}]({1} \"{2}\")", new CultureInfo("en-US", false).TextInfo.ToTitleCase(tocName), groupToFilePathMap[group.Name], group.Name);
+            }
+            sortKey = string.Format("{0}.{1}", parentSortKey, tocName);
+            TocFileContent.Add(sortKey, builder);
 
             //get all immediate children
             List<AzureCliViewModel> subItems = new List<AzureCliViewModel>();
@@ -158,16 +245,17 @@ namespace AzCliDocPreprocessor
 
             foreach (var subItem in subItems)
             {
-                if(subItem.CommandBasicInfoList.Count > 0)
+                if (subItem.CommandBasicInfoList.Count > 0)
                 {
-                    PrepareToc(NameCommandGroupMap[subItem.Name], groupToFilePathMap);
+                    PrepareToc(NameCommandGroupMap[subItem.Name], groupToFilePathMap, group.Name, string.Format("{0}.1", sortKey));
                 }
                 else
                 {
                     var subBuilder = new StringBuilder();
                     subBuilder.Append('#', GetWordCount(subItem.Name));
-                    subBuilder.AppendFormat(" [{0}]({1}#{2})", subItem.Name, groupToFilePathMap[group.Name], subItem.HtmlId);
-                    TocLines.Add(subBuilder.ToString());
+                    subTocName = new CultureInfo("en-US", false).TextInfo.ToTitleCase(TitleMappings.ContainsKey(subItem.Name) ? TitleMappings[subItem.Name].TocTitle : subItem.Name.Replace(group.Name, "").Trim());
+                    subBuilder.AppendFormat(" [{0}]({1}#{2} \"{3}\")", subTocName, groupToFilePathMap[group.Name], GetUid(subItem.Name), subItem.Name);
+                    TocFileContent.Add(string.Format("{0}.0.{1}", sortKey, subTocName), subBuilder);
                 }
             }
         }
@@ -184,7 +272,7 @@ namespace AzCliDocPreprocessor
 
         private static string GetUid(string commandName)
         {
-            return commandName.Replace(' ', '_');
+            return commandName.Replace(' ', '_').Replace('-', '_');
         }
 
         private string PrepareDocFilePath(string destDirectory, string name)
@@ -242,7 +330,7 @@ namespace AzCliDocPreprocessor
                             cliArg.Description = fieldValue;
                             break;
                         case "required":
-                            cliArg.IsRequired = fieldValue;
+                            cliArg.IsRequired = string.IsNullOrEmpty(fieldValue) ? fieldValue : fieldValue.ToLower();
                             break;
                         case "default":
                             cliArg.DefaultValue = fieldValue;
@@ -414,6 +502,16 @@ namespace AzCliDocPreprocessor
                 return string.Empty;
 
             return resolveHyperLink ? ResolveHyperLink(element) : element.Value;
+        }
+
+        private List<AzureCliUniversalParameter> GetGlobalParameters()
+        {
+            return new JavaScriptSerializer().Deserialize<List<AzureCliUniversalParameter>>(new StreamReader("./data/GlobalParameters.json").ReadToEnd());
+        }
+
+        private Dictionary<string, TocTitleMappings> GetTitleMappings()
+        {
+            return new JavaScriptSerializer().Deserialize<Dictionary<string, TocTitleMappings>>(new StreamReader("./data/titleMapping.json").ReadToEnd());
         }
     }
 }
