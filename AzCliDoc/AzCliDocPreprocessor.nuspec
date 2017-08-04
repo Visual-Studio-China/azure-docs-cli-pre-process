@@ -15,5 +15,6 @@
     <file src="bin\Release\*.dll" target="tools" />
     <file src="bin\Release\*.config" target="tools" />
     <file src="bin\Release\*.exe" target="tools" />
+    <file src="bin\Release\data\*.json" target="tools\data" />
   </files>
 </package>
