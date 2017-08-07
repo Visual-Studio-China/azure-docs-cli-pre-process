@@ -66,6 +66,7 @@
     <Compile Include="Model\AzureCliUniversalModels\AzureCliUniversalRemote.cs" />
     <Compile Include="Model\AzureCliUniversalModels\AzureCliUniversalSource.cs" />
     <Compile Include="Model\AzureCliUniversalModels\AzureCliUniversalSyntax.cs" />
+    <Compile Include="Model\AzureCliUniversalModels\AzureCliUniversalTOC.cs" />
     <Compile Include="Model\AzureCliUniversalModels\AzureCliUniversalViewModel.cs" />
     <Compile Include="Model\AzureCliViewModel.cs" />
     <Compile Include="Model\AzureCliViewModelBase.cs" />

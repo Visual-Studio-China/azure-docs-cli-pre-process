@@ -228,7 +228,7 @@ namespace AzCliDocPreprocessor
             {
                 Directory.CreateDirectory(destDirectory);
             }
-            //save group
+            // Saves groups
             CommandGroups.Sort((group1, group2) => string.CompareOrdinal(group1.Name, group2.Name));
             Dictionary<string, string> groupToFilePathMap = new Dictionary<string, string>();
             foreach (var commandGroup in UniversalCommandGroups)
@@ -242,8 +242,11 @@ namespace AzCliDocPreprocessor
                 }
             }
 
-            PrepareToc(NameCommandGroupMap[AzGroupName], groupToFilePathMap);
-            File.WriteAllLines(Path.Combine(destDirectory, Options.TocFileName), TocFileContent.OrderBy(x => x.Key).Select(x => x.Value.ToString()).ToList());
+            // Saves TOC
+            using (var writer = new StreamWriter(Path.Combine(destDirectory, "TOC.yml"), false))
+            {
+                YamlUtility.Serialize(writer, PrepareFusionToc(NameCommandGroupMap[AzGroupName], groupToFilePathMap));
+            }
         }
 
         private void PrepareToc(AzureCliViewModel group, IDictionary<string, string> groupToFilePathMap, string parentName = "", string parentSortKey = "")
@@ -290,6 +293,61 @@ namespace AzCliDocPreprocessor
                     TocFileContent.Add(string.Format("{0}.0.{1}", sortKey, subTocName), subBuilder);
                 }
             }
+        }
+
+        private AzureCliUniversalTOC PrepareFusionToc(AzureCliViewModel group, IDictionary<string, string> groupToFilePathMap, string parentName = "")
+        {
+            AzureCliUniversalTOC azureCliUniversalTOC = null;
+            string tocName = null;
+
+            if (string.Equals(group.Name, AzGroupName, StringComparison.OrdinalIgnoreCase))
+            {
+                tocName = FormalAzGroupName;
+                azureCliUniversalTOC = new AzureCliUniversalTOC()
+                {
+                    name = tocName,
+                    uid = GetUid(group.Name)
+                };
+            }
+            else
+            {
+                tocName = TitleMappings.ContainsKey(group.Name) ? TitleMappings[group.Name].TocTitle : group.Name.Replace(parentName, "").Trim();
+                azureCliUniversalTOC = new AzureCliUniversalTOC()
+                {
+                    name = new CultureInfo("en-US", false).TextInfo.ToTitleCase(tocName),
+                    uid = GetUid(group.Name),
+                    displayName = group.Name
+                };
+            }
+            List<AzureCliViewModel> children = group.Children;
+            List<AzureCliViewModel> subGroups = GetSubGroups(group.Name, GetWordCount(group.Name));
+            if (children.Count > 0 || subGroups.Count > 0)
+                azureCliUniversalTOC.items = new List<AzureCliUniversalTOC>();
+            List<AzureCliUniversalTOC> childrenTOC = new List<AzureCliUniversalTOC>();
+            foreach (AzureCliViewModel child in children)
+            {
+                childrenTOC.Add(new AzureCliUniversalTOC()
+                {
+                    name = new CultureInfo("en-US", false).TextInfo.ToTitleCase(TitleMappings.ContainsKey(child.Name) ? TitleMappings[child.Name].TocTitle : child.Name.Replace(group.Name, "").Trim()),
+                    uid = GetUid(child.Name),
+                    displayName = child.Name
+                });
+            }
+            List<AzureCliUniversalTOC> subGroupsToc = new List<AzureCliUniversalTOC>();
+            foreach (AzureCliViewModel subGroup in subGroups)
+            {
+                subGroupsToc.Add(PrepareFusionToc(subGroup, groupToFilePathMap, group.Name));
+            }
+            if (childrenTOC.Count > 0 || subGroupsToc.Count > 0)
+            {
+                azureCliUniversalTOC.items = new List<AzureCliUniversalTOC>();
+                childrenTOC.Sort((item1, item2) => string.CompareOrdinal(item1.name, item2.name));
+                subGroupsToc.Sort((item1, item2) => string.CompareOrdinal(item1.name, item2.name));
+                azureCliUniversalTOC.items.AddRange(childrenTOC);
+                azureCliUniversalTOC.items.AddRange(subGroupsToc);
+            }
+
+            return azureCliUniversalTOC;
         }
 
         private List<AzureCliViewModel> GetSubGroups(string groupName, int groupWordCount)
