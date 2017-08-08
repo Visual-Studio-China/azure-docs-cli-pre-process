@@ -245,7 +245,7 @@ namespace AzCliDocPreprocessor
             // Saves TOC
             using (var writer = new StreamWriter(Path.Combine(destDirectory, "TOC.yml"), false))
             {
-                YamlUtility.Serialize(writer, PrepareFusionToc(NameCommandGroupMap[AzGroupName], groupToFilePathMap));
+                YamlUtility.Serialize(writer, new List<AzureCliUniversalTOC>() { PrepareFusionToc(NameCommandGroupMap[AzGroupName], groupToFilePathMap) });
             }
         }
 
