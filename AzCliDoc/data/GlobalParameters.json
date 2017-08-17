@@ -1,0 +1,29 @@
+[
+    {
+        "name": "--debug",
+        "isRequired": "false",
+        "summary":"Increase logging verbosity to show all debug logs."
+    },
+    {
+        "name": "--help -h",
+        "isRequired": "false",
+        "summary": "Show this help message and exit."
+    },
+    {
+        "name": "--output -o",
+        "isRequired": "false",
+        "summary": "Output format.",
+        "defaultValue": "json",
+        "parameterValueGroup": "json, jsonc, table, tsv"
+    },
+    {
+        "name": "--query",
+        "isRequired": "false",
+        "summary": "JMESPath query string. See <a href=\"http://jmespath.org/\">http://jmespath.org/</a> for more information and examples."
+    },
+    {
+        "name": "--verbose",
+        "isRequired": "false",
+        "summary": "Increase logging verbosity. Use --debug for full debug logs."
+    }
+]

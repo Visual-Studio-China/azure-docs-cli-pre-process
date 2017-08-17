@@ -5,10 +5,10 @@ namespace AzCliDocPreprocessor
 {
     internal class Options
     {
-        [Option('e', "ext", Required = false, DefaultValue = ".pycliyml")]
+        [Option('e', "ext", Required = false, DefaultValue = ".yml")]
         public string DocExtension { get; set; }
 
-        [Option('t', "toc", Required = false, DefaultValue = "refTOC.md")]
+        [Option('t', "toc", Required = false, DefaultValue = "TOC.md")]
         public string TocFileName { get; set; }
 
         [Option('s', "source", Required = true)]

@@ -9,7 +9,7 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>Microsoft.DocAsCode.EntityModel.Plugins.OpenPublishing.AzureCli.Model</RootNamespace>
     <AssemblyName>Microsoft.DocAsCode.EntityModel.Plugins.OpenPublishing.AzureCli.Model</AssemblyName>
-    <TargetFrameworkVersion>v4.5.2</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.6</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <TargetFrameworkProfile />
@@ -59,6 +59,15 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Model\AzureCliUniversalModels\AzureCliUniversalExample.cs" />
+    <Compile Include="Model\AzureCliUniversalModels\AzureCliUniversalItem.cs" />
+    <Compile Include="Model\AzureCliUniversalModels\AzureCliUniversalCommand.cs" />
+    <Compile Include="Model\AzureCliUniversalModels\AzureCliUniversalParameter.cs" />
+    <Compile Include="Model\AzureCliUniversalModels\AzureCliUniversalRemote.cs" />
+    <Compile Include="Model\AzureCliUniversalModels\AzureCliUniversalSource.cs" />
+    <Compile Include="Model\AzureCliUniversalModels\AzureCliUniversalSyntax.cs" />
+    <Compile Include="Model\AzureCliUniversalModels\AzureCliUniversalTOC.cs" />
+    <Compile Include="Model\AzureCliUniversalModels\AzureCliUniversalViewModel.cs" />
     <Compile Include="Model\AzureCliViewModel.cs" />
     <Compile Include="Model\AzureCliViewModelBase.cs" />
     <Compile Include="Model\CommandBasicInfo.cs" />
@@ -71,6 +80,7 @@
     <Compile Include="Model\SourceExtent.cs" />
     <Compile Include="Model\SourceRange.cs" />
     <Compile Include="Model\Syntax.cs" />
+    <Compile Include="Model\TocTitleMappings.cs" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Properties\" />
