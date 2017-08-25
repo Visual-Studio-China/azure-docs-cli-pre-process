@@ -93,6 +93,7 @@ namespace AzCliDocPreprocessor
                         Name = commandGroup.Name,
                         Langs = new List<string>() { "azurecli" },
                         Summary = commandGroup.Summary,
+                        Description = commandGroup.Description,
                         Children = commandGroup.Children.Select(x => x.Uid).ToList()
                     });
                     foreach (AzureCliViewModel commandGroupChild in commandGroup.Children)
@@ -102,7 +103,8 @@ namespace AzCliDocPreprocessor
                             Uid = commandGroupChild.Uid,
                             Name = commandGroupChild.Name,
                             Langs = new List<string>() { "azurecli" },
-                            Summary = commandGroupChild.Summary
+                            Summary = commandGroupChild.Summary,
+                            Description = commandGroupChild.Description
                         };
                         if (null != commandGroupChild.Parameters && 0 != commandGroupChild.Parameters.Count)
                         {
@@ -113,6 +115,7 @@ namespace AzCliDocPreprocessor
                                                                     DefaultValue = parameterItem.DefaultValue,
                                                                     IsRequired = bool.Parse(parameterItem.IsRequired),
                                                                     Summary = parameterItem.Summary,
+                                                                    Description = parameterItem.Description,
                                                                     ParameterValueGroup = parameterItem.ParameterValueGroup,
                                                                     ValueFrom = parameterItem.ValueFrom
                                                                 }).Except(GlobalParameters, new AzureCliUniversalParameterComparer()).ToList();
@@ -142,7 +145,8 @@ namespace AzCliDocPreprocessor
                         Commands = (from commandGroupBasicItem in commandGroup.CommandBasicInfoList
                                     select new AzureCliUniversalCommand { Uid = GetUid(commandGroupBasicItem.Name), Name = commandGroupBasicItem.Name, Summary = commandGroupBasicItem.Description })
                                    .ToList(),
-                        Items = items
+                        Items = items,
+                        Metadata = commandGroup.Metadata
                     };
                     UniversalCommandGroups.Add(commandGroup.Name, universalViewModel);
                 }

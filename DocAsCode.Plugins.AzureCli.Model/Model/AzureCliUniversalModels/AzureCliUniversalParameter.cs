@@ -29,6 +29,10 @@
         [JsonProperty("summary")]
         public string Summary { get; set; }
 
+        [YamlMember(Alias = "description")]
+        [JsonProperty("description")]
+        public string Description { get; set; }
+
         [YamlMember(Alias = "valueFrom")]
         [JsonProperty("valueFrom")]
         public string ValueFrom { get; set; }
