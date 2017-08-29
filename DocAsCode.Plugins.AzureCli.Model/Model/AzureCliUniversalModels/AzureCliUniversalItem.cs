@@ -21,6 +21,10 @@
         [JsonProperty("summary")]
         public string Summary { get; set; }
 
+        [YamlMember(Alias = "description")]
+        [JsonProperty("description")]
+        public string Description { get; set; }
+
         [YamlMember(Alias = "langs")]
         [JsonProperty("langs")]
         public List<string> Langs { get; set; } = new List<string>();

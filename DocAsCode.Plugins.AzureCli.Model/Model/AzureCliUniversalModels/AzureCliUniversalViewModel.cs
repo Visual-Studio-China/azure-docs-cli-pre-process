@@ -3,6 +3,7 @@
     using System;
     using System.Collections.Generic;
 
+    using Microsoft.DocAsCode.YamlSerialization;
     using Newtonsoft.Json;
     using YamlDotNet.Serialization;
 
@@ -20,5 +21,9 @@
         [YamlMember(Alias = "globalParameters")]
         [JsonProperty("globalParameters")]
         public List<AzureCliUniversalParameter> GlobalParameters { get; set; } = new List<AzureCliUniversalParameter>();
+
+        [ExtensibleMember]
+        [JsonExtensionData]
+        public Dictionary<string, object> Metadata { get; set; } = new Dictionary<string, object>();
     }
 }
