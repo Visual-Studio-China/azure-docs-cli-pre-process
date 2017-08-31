@@ -498,8 +498,14 @@ namespace AzCliDocPreprocessor
         private string ResolveHyperLink(XElement element)
         {
             var refs = element.Descendants("reference");
-            if (!refs.Any())
+            var titleRefs = element.Descendants("title_reference");
+            if (!refs.Any() && !titleRefs.Any())
                 return element.Value;
+
+            foreach (var titleReference in titleRefs.ToArray())
+            {
+                titleReference.ReplaceWith(new XText(string.Format("`{0}`", titleReference.Value)));
+            }
 
             foreach(var reference in refs.ToArray())
             {
