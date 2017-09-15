@@ -330,6 +330,9 @@ namespace AzCliDocPreprocessor
             List<AzureCliUniversalTOC> childrenTOC = new List<AzureCliUniversalTOC>();
             foreach (AzureCliViewModel child in children)
             {
+                // Exclude command in TOC
+                if (TitleMappings.ContainsKey(child.Name) && !TitleMappings[child.Name].Show)
+                    continue;
                 childrenTOC.Add(new AzureCliUniversalTOC()
                 {
                     name = new CultureInfo("en-US", false).TextInfo.ToTitleCase(TitleMappings.ContainsKey(child.Name) ? TitleMappings[child.Name].TocTitle : child.Name.Replace(group.Name, "").Trim()),
@@ -340,6 +343,9 @@ namespace AzCliDocPreprocessor
             List<AzureCliUniversalTOC> subGroupsToc = new List<AzureCliUniversalTOC>();
             foreach (AzureCliViewModel subGroup in subGroups)
             {
+                // Exclude command group in TOC
+                if (TitleMappings.ContainsKey(subGroup.Name) && !TitleMappings[subGroup.Name].Show)
+                    continue;
                 subGroupsToc.Add(PrepareFusionToc(subGroup, groupToFilePathMap, group.Name));
             }
             if (childrenTOC.Count > 0 || subGroupsToc.Count > 0)
