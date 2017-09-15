@@ -32,6 +32,9 @@ namespace AzCliDocPreprocessor
         [Option('v', "version", Required = false, DefaultValue = 0)]
         public int Version { get; set; }
 
+        [Option('f', "filter", Required = false)]
+        public string CommandFilter { get; set; }
+
         [HelpOption]
         public string GetUsage()
         {

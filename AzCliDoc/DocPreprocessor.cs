@@ -611,7 +611,7 @@ namespace AzCliDocPreprocessor
 
         private Dictionary<string, TocTitleMappings> GetTitleMappings()
         {
-            return new JavaScriptSerializer().Deserialize<Dictionary<string, TocTitleMappings>>(new StreamReader("./data/titleMapping.json").ReadToEnd());
+            return new JavaScriptSerializer().Deserialize<Dictionary<string, TocTitleMappings>>(new StreamReader(Options.CommandFilter ?? "./data/TitleMapping.json").ReadToEnd());
         }
 
         private List<string> GetSourceXmlPathSet(string path)

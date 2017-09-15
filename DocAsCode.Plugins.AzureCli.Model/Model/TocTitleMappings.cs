@@ -11,5 +11,7 @@ namespace Microsoft.DocAsCode.EntityModel.Plugins.OpenPublishing.AzureCli
         public string TocTitle { get; set; }
 
         public string PageTitle { get; set; }
+
+        public bool Show { get; set; } = true;
     }
 }
