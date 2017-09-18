@@ -48,7 +48,9 @@ namespace AzCliDocPreprocessor
                 foreach (var group in groups)
                 {
                     var commandGroup = ExtractCommandGroup(group);
-                    if (TitleMappings.ContainsKey(commandGroup.Name) && !TitleMappings[commandGroup.Name].Show)
+                    var parentGroupName = commandGroup.Name.Substring(0, commandGroup.Name.LastIndexOf(' ') < 0 ? 0 : commandGroup.Name.LastIndexOf(' '));
+                    if ((TitleMappings.ContainsKey(commandGroup.Name) && !TitleMappings[commandGroup.Name].Show) 
+                        || (!string.IsNullOrEmpty(parentGroupName) && !NameCommandGroupMap.ContainsKey(parentGroupName)))
                         continue;
                     CommandGroups.Add(commandGroup);
                     NameCommandGroupMap[commandGroup.Name] = commandGroup;
@@ -253,7 +255,8 @@ namespace AzCliDocPreprocessor
             // Saves TOC
             using (var writer = new StreamWriter(Path.Combine(destDirectory, "TOC.yml"), false))
             {
-                YamlUtility.Serialize(writer, new List<AzureCliUniversalTOC>() { PrepareFusionToc(NameCommandGroupMap[AzGroupName], groupToFilePathMap) });
+                if (NameCommandGroupMap.ContainsKey(AzGroupName))
+                    YamlUtility.Serialize(writer, new List<AzureCliUniversalTOC>() { PrepareFusionToc(NameCommandGroupMap[AzGroupName], groupToFilePathMap) });
             }
         }
 
