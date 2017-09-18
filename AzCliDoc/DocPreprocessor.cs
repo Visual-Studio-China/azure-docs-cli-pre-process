@@ -48,6 +48,10 @@ namespace AzCliDocPreprocessor
                 foreach (var group in groups)
                 {
                     var commandGroup = ExtractCommandGroup(group);
+                    var parentGroupName = commandGroup.Name.Substring(0, commandGroup.Name.LastIndexOf(' ') < 0 ? 0 : commandGroup.Name.LastIndexOf(' '));
+                    if ((TitleMappings.ContainsKey(commandGroup.Name) && !TitleMappings[commandGroup.Name].Show) 
+                        || (!string.IsNullOrEmpty(parentGroupName) && !NameCommandGroupMap.ContainsKey(parentGroupName)))
+                        continue;
                     CommandGroups.Add(commandGroup);
                     NameCommandGroupMap[commandGroup.Name] = commandGroup;
                 }
@@ -59,8 +63,10 @@ namespace AzCliDocPreprocessor
                     try
                     {
                         var commandEntry = ExtractCommandEntry(command);
-
                         groupName = commandEntry.Name.Substring(0, commandEntry.Name.LastIndexOf(' '));
+                        if (!NameCommandGroupMap.ContainsKey(groupName) ||
+                            (TitleMappings.ContainsKey(commandEntry.Name) && !TitleMappings[commandEntry.Name].Show))
+                            continue;
                         NameCommandGroupMap[groupName].Children.Add(commandEntry);
                     }
                     catch (Exception ex)
@@ -165,13 +171,13 @@ namespace AzCliDocPreprocessor
                 {
                     Name = subItem.Name,
                     Description = !string.IsNullOrEmpty(subItem.Summary) ? subItem.Summary : subItem.Description,
-                    HyperLink =  isTopGroup ? (isGroup ? $"{subItem.HtmlId}" : $"#{subItem.HtmlId}") : (isGroup ? $"{group.HtmlId}/{subItem.HtmlId}" : $"{group.HtmlId}#{subItem.HtmlId}"),
+                    HyperLink = isTopGroup ? (isGroup ? $"{subItem.HtmlId}" : $"#{subItem.HtmlId}") : (isGroup ? $"{group.HtmlId}/{subItem.HtmlId}" : $"{group.HtmlId}#{subItem.HtmlId}"),
                     IsGroup = isGroup
                 });
 
-                if(isGroup && !string.Equals(group.Name, AzGroupName, StringComparison.OrdinalIgnoreCase))
+                if (isGroup && !string.Equals(group.Name, AzGroupName, StringComparison.OrdinalIgnoreCase))
                 {
-                    foreach(var basicInfo in subItem.CommandBasicInfoList)
+                    foreach (var basicInfo in subItem.CommandBasicInfoList)
                     {
                         group.CommandBasicInfoList.Add(new CommandBasicInfo
                         {
@@ -249,53 +255,8 @@ namespace AzCliDocPreprocessor
             // Saves TOC
             using (var writer = new StreamWriter(Path.Combine(destDirectory, "TOC.yml"), false))
             {
-                YamlUtility.Serialize(writer, new List<AzureCliUniversalTOC>() { PrepareFusionToc(NameCommandGroupMap[AzGroupName], groupToFilePathMap) });
-            }
-        }
-
-        private void PrepareToc(AzureCliViewModel group, IDictionary<string, string> groupToFilePathMap, string parentName = "", string parentSortKey = "")
-        {
-            var builder = new StringBuilder();
-            int groupWordCount = GetWordCount(group.Name);
-            string tocName = null;
-            string subTocName = null;
-            string sortKey = null;
-
-            builder.Append('#', groupWordCount);
-            if (string.Equals(group.Name, AzGroupName, StringComparison.OrdinalIgnoreCase))
-            {
-                tocName = FormalAzGroupName;
-                builder.AppendFormat(" [{0}]({1})", tocName, groupToFilePathMap[group.Name]);
-            }
-            else
-            {
-                tocName = TitleMappings.ContainsKey(group.Name) ? TitleMappings[group.Name].TocTitle : group.Name.Replace(parentName, "").Trim();
-                builder.AppendFormat(" [{0}]({1} \"{2}\")", new CultureInfo("en-US", false).TextInfo.ToTitleCase(tocName), groupToFilePathMap[group.Name], group.Name);
-            }
-            sortKey = string.Format("{0}.{1}", parentSortKey, tocName);
-            TocFileContent.Add(sortKey, builder);
-
-            //get all immediate children
-            List<AzureCliViewModel> subItems = new List<AzureCliViewModel>();
-            subItems.AddRange(group.Children);
-            var subGroups = GetSubGroups(group.Name, groupWordCount);
-            subItems.AddRange(subGroups);
-            subItems.Sort((item1, item2) => string.CompareOrdinal(item1.Name, item2.Name));
-
-            foreach (var subItem in subItems)
-            {
-                if (subItem.CommandBasicInfoList.Count > 0)
-                {
-                    PrepareToc(NameCommandGroupMap[subItem.Name], groupToFilePathMap, group.Name, string.Format("{0}.1", sortKey));
-                }
-                else
-                {
-                    var subBuilder = new StringBuilder();
-                    subBuilder.Append('#', GetWordCount(subItem.Name));
-                    subTocName = new CultureInfo("en-US", false).TextInfo.ToTitleCase(TitleMappings.ContainsKey(subItem.Name) ? TitleMappings[subItem.Name].TocTitle : subItem.Name.Replace(group.Name, "").Trim());
-                    subBuilder.AppendFormat(" [{0}]({1}#{2} \"{3}\")", subTocName, groupToFilePathMap[group.Name], GetUid(subItem.Name), subItem.Name);
-                    TocFileContent.Add(string.Format("{0}.0.{1}", sortKey, subTocName), subBuilder);
-                }
+                if (NameCommandGroupMap.ContainsKey(AzGroupName))
+                    YamlUtility.Serialize(writer, new List<AzureCliUniversalTOC>() { PrepareFusionToc(NameCommandGroupMap[AzGroupName], groupToFilePathMap) });
             }
         }
 
@@ -406,12 +367,12 @@ namespace AzCliDocPreprocessor
             command.Parameters = new List<Parameter>();
 
             var args = commandElement.XPathSelectElements("desc_content/desc[@desctype='cliarg']");
-            foreach(var arg in args)
+            foreach (var arg in args)
             {
                 var cliArg = new Parameter();
                 cliArg.Name = arg.XPathSelectElement("desc_signature/desc_addname").Value;
                 var fields = arg.XPathSelectElements("desc_content/field_list/field");
-                foreach(var field in fields)
+                foreach (var field in fields)
                 {
                     var fieldValue = ExtractFieldValue(field);
                     var fieldName = field.Element("field_name").Value.ToLower();
@@ -466,15 +427,15 @@ namespace AzCliDocPreprocessor
                 return fieldValue;
 
             var subFields = fieldValue.Split(',');
-            if(subFields.Length > 1)
+            if (subFields.Length > 1)
             {
                 char first = subFields[0][0];
-                if(first == '\'')
+                if (first == '\'')
                 {
                     fieldValue = fieldValue.Replace("'", "''");
                     fieldValue = $"'{fieldValue}'";
                 }
-                else if(first == '"')
+                else if (first == '"')
                 {
                     fieldValue = $"'{fieldValue}'";
                 }
@@ -489,7 +450,7 @@ namespace AzCliDocPreprocessor
                 return ResolveHyperLink(paragraph);
 
             var listItems = field.XPathSelectElements("field_body/bullet_list/list_item");
-            if(listItems.Count() > 0)
+            if (listItems.Count() > 0)
                 return string.Join("|", listItems.Select(element => ResolveHyperLink(element)).ToArray());
 
             throw new ApplicationException(string.Format("UNKNOW field_body:{0}", field.Value));
@@ -507,7 +468,7 @@ namespace AzCliDocPreprocessor
                 titleReference.ReplaceWith(new XText(string.Format("`{0}`", titleReference.Value)));
             }
 
-            foreach(var reference in refs.ToArray())
+            foreach (var reference in refs.ToArray())
             {
                 if (IsValidUrl(reference.Value))
                 {
@@ -538,7 +499,7 @@ namespace AzCliDocPreprocessor
         private AzureCliViewModel ExtractCommand(XElement xElement, bool isGroup)
         {
             var name = xElement.XPathSelectElement("desc_signature/desc_addname").Value;
-            if(!string.Equals(name, AzGroupName, StringComparison.OrdinalIgnoreCase))
+            if (!string.Equals(name, AzGroupName, StringComparison.OrdinalIgnoreCase))
             {
                 name = string.Format("{0} {1}", AzGroupName, name);
             }
@@ -583,7 +544,7 @@ namespace AzCliDocPreprocessor
             }
 
             var examples = xElement.XPathSelectElements("desc_content/desc[@desctype='cliexample']");
-            foreach(var example in examples)
+            foreach (var example in examples)
             {
                 var cliExample = new Example();
                 cliExample.Title = example.XPathSelectElement("desc_signature/desc_addname").Value;
@@ -611,7 +572,7 @@ namespace AzCliDocPreprocessor
 
         private Dictionary<string, TocTitleMappings> GetTitleMappings()
         {
-            return new JavaScriptSerializer().Deserialize<Dictionary<string, TocTitleMappings>>(new StreamReader("./data/titleMapping.json").ReadToEnd());
+            return new JavaScriptSerializer().Deserialize<Dictionary<string, TocTitleMappings>>(new StreamReader(Options.CommandFilter ?? "./data/TitleMapping.json").ReadToEnd());
         }
 
         private List<string> GetSourceXmlPathSet(string path)
