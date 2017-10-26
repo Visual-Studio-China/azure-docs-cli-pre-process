@@ -15,16 +15,17 @@ namespace AzCliDocPreprocessor
 {
     internal class DocPreprocessor
     {
-        private const string AzGroupName = "az";
         private const string FormalAzGroupName = "Reference";
         private const string YamlMimeProcessor = "### YamlMime:UniversalReference";
         private const string AutoGenFolderName = "docs-ref-autogen";
+
+        private string AzGroupName = "";
 
         private Options Options { get; set; }
         private List<AzureCliViewModel> CommandGroups { get; set; } = new List<AzureCliViewModel>();
         private List<AzureCliUniversalParameter> GlobalParameters { get; set; } = new List<AzureCliUniversalParameter>();
         private List<string> SourceXmlPathSet = new List<string>();
-        private Dictionary<string, CommitInfo> DocCommitIdMap { get; set; }
+        private Dictionary<string, CommitInfo> DocCommitIdMap { get; set; } = new Dictionary<string, CommitInfo>();
         private Dictionary<string, AzureCliViewModel> NameCommandGroupMap { get; set; } = new Dictionary<string, AzureCliViewModel>();
         private Dictionary<string, TocTitleMappings> TitleMappings { get; set; } = new Dictionary<string, TocTitleMappings>();
         private Dictionary<string, StringBuilder> TocFileContent { get; set; } = new Dictionary<string, StringBuilder>();
@@ -162,7 +163,7 @@ namespace AzCliDocPreprocessor
             return true;
         }
 
-        private static void PrepareCommandBasicInfoList(AzureCliViewModel group, IList<AzureCliViewModel> subItems, bool isGroup)
+        private void PrepareCommandBasicInfoList(AzureCliViewModel group, IList<AzureCliViewModel> subItems, bool isGroup)
         {
             bool isTopGroup = string.Equals(group.Name, AzGroupName, StringComparison.OrdinalIgnoreCase);
             foreach (var subItem in subItems)
@@ -230,6 +231,7 @@ namespace AzCliDocPreprocessor
 
             GlobalParameters = GetGlobalParameters();
             TitleMappings = GetTitleMappings();
+            AzGroupName = Options.GroupName;
         }
 
         private void Save(string destDirectory)
@@ -525,11 +527,13 @@ namespace AzCliDocPreprocessor
                     command.Metadata["doc_source_url_repo"] = string.Format("{0}/blob/{1}/", Options.RepoOfSource, Options.Branch);
                     command.Metadata["doc_source_url_path"] = docSource;
                     command.Metadata["original_content_git_url"] = string.Format("{0}/blob/{1}/{2}", Options.RepoOfSource, Options.Branch, docSource);
-                    command.Metadata["gitcommit"] = string.Format("{0}/blob/{1}/{2}", Options.RepoOfSource, DocCommitIdMap[docSource].Commit, docSource);
-
-                    var date = DocCommitIdMap[docSource].Date;
-                    command.Metadata["updated_at"] = date.ToString();
-                    command.Metadata["ms.date"] = date.ToShortDateString();
+                    if (DocCommitIdMap.ContainsKey(docSource))
+                    {
+                        command.Metadata["gitcommit"] = string.Format("{0}/blob/{1}/{2}", Options.RepoOfSource, DocCommitIdMap[docSource].Commit, docSource);
+                        var date = DocCommitIdMap[docSource].Date;
+                        command.Metadata["updated_at"] = date.ToString();
+                        command.Metadata["ms.date"] = date.ToShortDateString();
+                    }
                 }
 
                 command.Source = new RemoteGitInfo()

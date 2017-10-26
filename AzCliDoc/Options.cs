@@ -35,6 +35,9 @@ namespace AzCliDocPreprocessor
         [Option('f', "filter", Required = false)]
         public string CommandFilter { get; set; }
 
+        [Option('g', "group", Required = false, DefaultValue = "az")]
+        public string GroupName { get; set; }
+
         [HelpOption]
         public string GetUsage()
         {
