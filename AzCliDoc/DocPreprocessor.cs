@@ -19,9 +19,8 @@ namespace AzCliDocPreprocessor
         private const string YamlMimeProcessor = "### YamlMime:UniversalReference";
         private const string AutoGenFolderName = "docs-ref-autogen";
 
-        private string AzGroupName = "";
-
         private Options Options { get; set; }
+        private CommandGroupConfiguration CommandGroupConfiguration { get; set; }
         private List<AzureCliViewModel> CommandGroups { get; set; } = new List<AzureCliViewModel>();
         private List<AzureCliUniversalParameter> GlobalParameters { get; set; } = new List<AzureCliUniversalParameter>();
         private List<string> SourceXmlPathSet = new List<string>();
@@ -98,7 +97,7 @@ namespace AzCliDocPreprocessor
                     {
                         Uid = commandGroup.Uid,
                         Name = commandGroup.Name,
-                        Langs = new List<string>() { "azurecli" },
+                        Langs = new List<string>() { CommandGroupConfiguration.Language },
                         Summary = commandGroup.Summary,
                         Description = commandGroup.Description,
                         Children = commandGroup.Children.Select(x => x.Uid).ToList()
@@ -109,7 +108,7 @@ namespace AzCliDocPreprocessor
                         {
                             Uid = commandGroupChild.Uid,
                             Name = commandGroupChild.Name,
-                            Langs = new List<string>() { "azurecli" },
+                            Langs = new List<string>() { CommandGroupConfiguration.Language },
                             Summary = commandGroupChild.Summary,
                             Description = commandGroupChild.Description
                         };
@@ -165,7 +164,7 @@ namespace AzCliDocPreprocessor
 
         private void PrepareCommandBasicInfoList(AzureCliViewModel group, IList<AzureCliViewModel> subItems, bool isGroup)
         {
-            bool isTopGroup = string.Equals(group.Name, AzGroupName, StringComparison.OrdinalIgnoreCase);
+            bool isTopGroup = string.Equals(group.Name, CommandGroupConfiguration.CommandPrefix, StringComparison.OrdinalIgnoreCase);
             foreach (var subItem in subItems)
             {
                 group.CommandBasicInfoList.Add(new CommandBasicInfo
@@ -176,7 +175,7 @@ namespace AzCliDocPreprocessor
                     IsGroup = isGroup
                 });
 
-                if (isGroup && !string.Equals(group.Name, AzGroupName, StringComparison.OrdinalIgnoreCase))
+                if (isGroup && !string.Equals(group.Name, CommandGroupConfiguration.CommandPrefix, StringComparison.OrdinalIgnoreCase))
                 {
                     foreach (var basicInfo in subItem.CommandBasicInfoList)
                     {
@@ -231,7 +230,10 @@ namespace AzCliDocPreprocessor
 
             GlobalParameters = GetGlobalParameters();
             TitleMappings = GetTitleMappings();
-            AzGroupName = Options.GroupName;
+            if (Enum.GetNames(typeof(CommandGroupType)).Contains(Options.GroupName.ToUpper()))
+                CommandGroupConfiguration = ParserCommandGroupConfiguration((CommandGroupType)Enum.Parse(typeof(CommandGroupType), Options.GroupName.ToUpper(), true));
+            else
+                CommandGroupConfiguration = ParserCommandGroupConfiguration(CommandGroupType.AZURE);
         }
 
         private void Save(string destDirectory)
@@ -257,8 +259,8 @@ namespace AzCliDocPreprocessor
             // Saves TOC
             using (var writer = new StreamWriter(Path.Combine(destDirectory, "TOC.yml"), false))
             {
-                if (NameCommandGroupMap.ContainsKey(AzGroupName))
-                    YamlUtility.Serialize(writer, new List<AzureCliUniversalTOC>() { PrepareFusionToc(NameCommandGroupMap[AzGroupName], groupToFilePathMap) });
+                if (NameCommandGroupMap.ContainsKey(CommandGroupConfiguration.CommandPrefix))
+                    YamlUtility.Serialize(writer, new List<AzureCliUniversalTOC>() { PrepareFusionToc(NameCommandGroupMap[CommandGroupConfiguration.CommandPrefix], groupToFilePathMap) });
             }
         }
 
@@ -267,7 +269,7 @@ namespace AzCliDocPreprocessor
             AzureCliUniversalTOC azureCliUniversalTOC = null;
             string tocName = null;
 
-            if (string.Equals(group.Name, AzGroupName, StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(group.Name, CommandGroupConfiguration.CommandPrefix, StringComparison.OrdinalIgnoreCase))
             {
                 tocName = FormalAzGroupName;
                 azureCliUniversalTOC = new AzureCliUniversalTOC()
@@ -501,9 +503,9 @@ namespace AzCliDocPreprocessor
         private AzureCliViewModel ExtractCommand(XElement xElement, bool isGroup)
         {
             var name = xElement.XPathSelectElement("desc_signature/desc_addname").Value;
-            if (!string.Equals(name, AzGroupName, StringComparison.OrdinalIgnoreCase))
+            if (!string.Equals(name, CommandGroupConfiguration.CommandPrefix, StringComparison.OrdinalIgnoreCase))
             {
-                name = string.Format("{0} {1}", AzGroupName, name);
+                name = string.Format("{0} {1}", CommandGroupConfiguration.CommandPrefix, name);
             }
             var ids = name.Split();
             var summary = ExtractFieldValueByName(xElement, "Summary");
@@ -520,7 +522,7 @@ namespace AzCliDocPreprocessor
             command.Uid = GetUid(name);
             command.Summary = summary;
             command.Description = description;
-            if (!string.IsNullOrEmpty(docSource))
+            if (!string.IsNullOrEmpty(docSource) && !string.IsNullOrEmpty(Options.RepoOfSource))
             {
                 if (isGroup)
                 {
@@ -577,6 +579,19 @@ namespace AzCliDocPreprocessor
         private Dictionary<string, TocTitleMappings> GetTitleMappings()
         {
             return new JavaScriptSerializer().Deserialize<Dictionary<string, TocTitleMappings>>(new StreamReader(Options.CommandFilter ?? "./data/TitleMapping.json").ReadToEnd());
+        }
+
+        private CommandGroupConfiguration ParserCommandGroupConfiguration(CommandGroupType commandGroupType)
+        {
+            switch (commandGroupType)
+            {
+                case CommandGroupType.AZURE:
+                    return new JavaScriptSerializer().Deserialize<CommandGroupConfiguration>(new StreamReader("./data/AzureCliConfiguration.json").ReadToEnd());
+                case CommandGroupType.VSTS:
+                    return new JavaScriptSerializer().Deserialize<CommandGroupConfiguration>(new StreamReader("./data/VSTSCliConfiguration.json").ReadToEnd());
+                default:
+                    return new JavaScriptSerializer().Deserialize<CommandGroupConfiguration>(new StreamReader("./data/AzureCliConfiguration.json").ReadToEnd());
+            }
         }
 
         private List<string> GetSourceXmlPathSet(string path)

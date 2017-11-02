@@ -85,10 +85,16 @@
   <ItemGroup>
     <None Include="App.config" />
     <None Include="AzCliDocPreprocessor.nuspec" />
+    <None Include="data\AzureCliConfiguration.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
     <None Include="data\GlobalParameters.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
     <None Include="data\TitleMapping.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Include="data\VSTSCliConfiguration.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
     <None Include="packages.config" />
