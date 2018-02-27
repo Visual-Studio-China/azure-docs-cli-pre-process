@@ -18,6 +18,7 @@ namespace AzCliDocPreprocessor
         private const string FormalAzGroupName = "Reference";
         private const string YamlMimeProcessor = "### YamlMime:UniversalReference";
         private const string AutoGenFolderName = "docs-ref-autogen";
+        private const string ReferenceIndexFileName = "reference-index";
 
         private Options Options { get; set; }
         private CommandGroupConfiguration CommandGroupConfiguration { get; set; }
@@ -338,7 +339,7 @@ namespace AzCliDocPreprocessor
         {
             var pathSegments = name.Split(' ');
             if (pathSegments.Length == 1)
-                return "index" + Options.DocExtension;
+                return ReferenceIndexFileName + Options.DocExtension;
 
             string relativePath = string.Empty;
 
