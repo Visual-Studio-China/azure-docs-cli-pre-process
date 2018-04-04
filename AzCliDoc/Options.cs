@@ -13,7 +13,10 @@ namespace AzCliDocPreprocessor
 
         [Option('s', "source", Required = true)]
         public string SourceXmlPath { get; set; }
-                
+
+        [Option('x', "extension", Required = false)]
+        public string ExtensionXmlPath { get; set; }
+
         [Option('d', "dest", Required = true)]
         public string DestDirectory { get; set; }
 
