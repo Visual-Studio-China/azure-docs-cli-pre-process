@@ -20,7 +20,7 @@ namespace AzCliDocPreprocessor
         private const string AutoGenFolderName = "docs-ref-autogen";
         private const string ReferenceIndexFileName = "reference-index";
         private const string ExtensionReferenceIndexFileName = "index";
-        private const string ExtensionGlobalPrefix = "_ext";
+        private const string ExtensionGlobalPrefix = "ext";
 
         private bool IsExtensionXml { get; set; }
         private string ExtensionXmlFolder { get; set; }
