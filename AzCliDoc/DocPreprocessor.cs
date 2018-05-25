@@ -646,7 +646,7 @@ namespace AzCliDocPreprocessor
                         command.Metadata["gitcommit"] = string.Format("{0}/blob/{1}/{2}", Options.RepoOfSource, DocCommitIdMap[docSource].Commit, docSource);
                         var date = DocCommitIdMap[docSource].Date;
                         command.Metadata["updated_at"] = date.ToString();
-                        command.Metadata["ms.date"] = date.ToShortDateString();
+                        command.Metadata["ms.date"] = date.ToString("MM/dd/yyyy");
                     }
                 }
 
