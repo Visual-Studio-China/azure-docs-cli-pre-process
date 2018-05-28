@@ -354,6 +354,7 @@ namespace AzCliDocPreprocessor
                 using (var writer = new StreamWriter(Path.Combine(destDirectory, relativeDocPath), false))
                 {
                     writer.WriteLine(YamlMimeProcessor);
+                    PrepareMetaData(commandGroup.Value);
                     YamlUtility.Serialize(writer, commandGroup.Value);
                 }
             }
@@ -363,6 +364,20 @@ namespace AzCliDocPreprocessor
             {
                 if (NameCommandGroupMap.ContainsKey(CommandGroupConfiguration.CommandPrefix))
                     YamlUtility.Serialize(writer, new List<AzureCliUniversalTOC>() { PrepareFusionToc(NameCommandGroupMap[CommandGroupConfiguration.CommandPrefix], groupToFilePathMap) });
+            }
+        }
+
+        private void PrepareMetaData(AzureCliUniversalViewModel commandGroup)
+        {
+            var metadata = commandGroup.Metadata;
+            var root = commandGroup.Items.First();
+            if (!metadata.ContainsKey("description") || string.IsNullOrEmpty(metadata["description"] as string))
+            {
+                var description = string.IsNullOrEmpty(root.Description) ? root.Summary : root.Description;
+                if (!string.IsNullOrEmpty(description))
+                {
+                    metadata["description"] = description;
+                }
             }
         }
 
