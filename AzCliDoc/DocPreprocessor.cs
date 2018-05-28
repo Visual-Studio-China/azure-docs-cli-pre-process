@@ -600,7 +600,9 @@ namespace AzCliDocPreprocessor
                 }
             }
 
-            var value = String.Concat(element.Nodes());
+            // node.ToString() use XmlWriterSettings.NewLineHandling, so it is "\r\n".
+            // But yamlserilizer will make it to 2 newlines, eg. "a\r\n b" to "a\n\n b"
+            var value = String.Concat(element.Nodes().Select(node => node.ToString().Replace("\r\n", "\n")));
             return value.Replace("</a><a", "</a> <a");
         }
 
