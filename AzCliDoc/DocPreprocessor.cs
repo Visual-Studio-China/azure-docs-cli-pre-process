@@ -354,6 +354,7 @@ namespace AzCliDocPreprocessor
                 using (var writer = new StreamWriter(Path.Combine(destDirectory, relativeDocPath), false))
                 {
                     writer.WriteLine(YamlMimeProcessor);
+                    PrepareMetaData(commandGroup.Value);
                     YamlUtility.Serialize(writer, commandGroup.Value);
                 }
             }
@@ -363,6 +364,20 @@ namespace AzCliDocPreprocessor
             {
                 if (NameCommandGroupMap.ContainsKey(CommandGroupConfiguration.CommandPrefix))
                     YamlUtility.Serialize(writer, new List<AzureCliUniversalTOC>() { PrepareFusionToc(NameCommandGroupMap[CommandGroupConfiguration.CommandPrefix], groupToFilePathMap) });
+            }
+        }
+
+        private void PrepareMetaData(AzureCliUniversalViewModel commandGroup)
+        {
+            var metadata = commandGroup.Metadata;
+            var root = commandGroup.Items.First();
+            if (!metadata.ContainsKey("description") || string.IsNullOrEmpty(metadata["description"] as string))
+            {
+                var description = string.IsNullOrEmpty(root.Description) ? root.Summary : root.Description;
+                if (!string.IsNullOrEmpty(description))
+                {
+                    metadata["description"] = description;
+                }
             }
         }
 
@@ -600,7 +615,10 @@ namespace AzCliDocPreprocessor
                 }
             }
 
-            var value = String.Concat(element.Nodes());
+            // node.ToString() use XmlWriterSettings.NewLineHandling, so it is "\r\n".
+            // But yamlserilizer will make it to 2 newlines, eg. "a\r\n b" to "a\n\n b"
+            // Just replace "\r\n" with "\n" for work around
+            var value = String.Concat(element.Nodes().Select(node => node.ToString().Replace("\r\n", "\n")));
             return value.Replace("</a><a", "</a> <a");
         }
 
@@ -646,7 +664,7 @@ namespace AzCliDocPreprocessor
                         command.Metadata["gitcommit"] = string.Format("{0}/blob/{1}/{2}", Options.RepoOfSource, DocCommitIdMap[docSource].Commit, docSource);
                         var date = DocCommitIdMap[docSource].Date;
                         command.Metadata["updated_at"] = date.ToString();
-                        command.Metadata["ms.date"] = date.ToShortDateString();
+                        command.Metadata["ms.date"] = date.ToString("MM/dd/yyyy");
                     }
                 }
 
