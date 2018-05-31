@@ -283,10 +283,10 @@
 		"TocTitle": "Catalogs",
 		"PageTitle": "Data Lake Analytics catalogs"
 	},
-  "az dla catalog assembly": {
-    "TocTitle": "Assembly",
-    "PageTitle": "Data Lake Analytics catalog assemblies"
-  },
+	"az dla catalog assembly": {
+		"TocTitle": "Assembly",
+		"PageTitle": "Data Lake Analytics catalog assemblies"
+	},
 	"az dla catalog credential": {
 		"TocTitle": "Credentials",
 		"PageTitle": "Data Lake Analytics catalog credentials"
@@ -362,10 +362,6 @@
 	"az disk": {
 		"TocTitle": "Managed Disks",
 		"PageTitle": "Managed Disks"
-	},
-	"az documentdb": {
-		"TocTitle": "DocumentDB",
-		"PageTitle": "DocumentDB"
 	},
 	"az feature": {
 		"TocTitle": "Resource provider features",
@@ -476,7 +472,7 @@
 		"PageTitle": "Dev/Test Lab gallery images"
 	},
 	"az lab vm": {
-		"TocTitle": "Virutal machines",
+		"TocTitle": "Virtual machines",
 		"PageTitle": "Dev/Test Lab virtual machines"
 	},
 	"az lab vnet": {
@@ -1122,5 +1118,9 @@
 	"az webapp": {
 		"TocTitle": "Web Apps",
 		"PageTitle": "Web Apps"
-	}
+	},
+	"az ams": {
+		"TocTitle": "Azure Media Services",
+		"PageTitle": "Azure Media Services (AMS)"
+	}	
 }
