@@ -13,7 +13,9 @@ namespace AzCliDocPreprocessor
                 Options options = new Options();
                 if (Parser.Default.ParseArguments(args, options))
                 {
+                    Console.WriteLine("Starting...");
                     new DocPreprocessor().Run(options);
+                    Console.WriteLine("Finished!");
                 }
                 else
                     throw new ApplicationException("Invalid arguments.");
@@ -23,6 +25,7 @@ namespace AzCliDocPreprocessor
                 var color = Console.ForegroundColor;
                 Console.ForegroundColor = ConsoleColor.Red;
                 Console.WriteLine(e.ToString());
+                Console.WriteLine(e.StackTrace);
                 Console.ForegroundColor = color;
                 throw;
             }

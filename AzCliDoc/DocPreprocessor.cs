@@ -118,11 +118,12 @@ namespace AzCliDocPreprocessor
             // Prepares universal yml object list
             foreach (var commandGroup in CommandGroups)
             {
+                bool isTopGroup = string.Equals(commandGroup.Name, CommandGroupConfiguration.CommandPrefix, StringComparison.OrdinalIgnoreCase);
                 List<AzureCliUniversalItem> items = new List<AzureCliUniversalItem>();
                 items.Add(new AzureCliUniversalItem()
                 {
                     Uid = commandGroup.Uid,
-                    Name = commandGroup.Name,
+                    Name = IsExtensionXml && isTopGroup ? ExtensionXmlFolder : commandGroup.Name,
                     Langs = new List<string>() { CommandGroupConfiguration.Language },
                     Summary = commandGroup.Summary,
                     Description = commandGroup.Description,
@@ -400,7 +401,7 @@ namespace AzCliDocPreprocessor
                 tocName = TitleMappings.ContainsKey(group.Name) ? TitleMappings[group.Name].TocTitle : group.Name.Replace(parentName, "").Trim();
                 azureCliUniversalTOC = new AzureCliUniversalTOC()
                 {
-                    name = new CultureInfo("en-US", false).TextInfo.ToTitleCase(tocName),
+                    name = tocName,
                     uid = GetUid(group.Name),
                     displayName = group.Name
                 };
@@ -414,7 +415,7 @@ namespace AzCliDocPreprocessor
             {
                 childrenTOC.Add(new AzureCliUniversalTOC()
                 {
-                    name = new CultureInfo("en-US", false).TextInfo.ToTitleCase(TitleMappings.ContainsKey(child.Name) ? TitleMappings[child.Name].TocTitle : child.Name.Replace(group.Name, "").Trim()),
+                    name = TitleMappings.ContainsKey(child.Name) ? TitleMappings[child.Name].TocTitle : child.Name.Replace(group.Name, "").Trim(),
                     uid = GetUid(child.Name),
                     displayName = child.Name
                 });
