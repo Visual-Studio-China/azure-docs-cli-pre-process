@@ -579,13 +579,38 @@ namespace AzCliDocPreprocessor
         {
             var paragraph = field.XPathSelectElement("field_body/paragraph");
             if (paragraph != null)
-                return ResolveHyperLink(paragraph);
+                return ResolveHyperLink(DedentInnerXML(paragraph));
 
             var listItems = field.XPathSelectElements("field_body/bullet_list/list_item");
             if (listItems.Count() > 0)
                 return string.Join("|", listItems.Select(element => ResolveHyperLink(element)).ToArray());
 
             throw new ApplicationException(string.Format("UNKNOW field_body:{0}", field.Value));
+        }
+
+        private XElement DedentInnerXML(XElement element)
+        {
+            var content = element.Nodes().Aggregate("", (b, node) => b += node.ToString());
+            var depth = element.AncestorsAndSelf().Count();
+            var lines = content.Split('\n');
+            for (int i = 1; i < lines.Length; i++)
+            {
+                var line = lines[i];
+                if(line.Length - line.TrimStart(' ').Length >= depth * 4)
+                {
+                    lines[i] = line.Substring(depth * 4);
+                }
+                else
+                {
+                    // could this happen?
+                    return element;
+                }
+            }
+
+            var replaceContent = string.Join("\n", lines);
+            element.ReplaceNodes(XElement.Parse($"<temproot>{replaceContent}</temproot>").Nodes());
+
+            return element;
         }
 
         private string ResolveHyperLink(XElement element)
@@ -685,7 +710,7 @@ namespace AzCliDocPreprocessor
             {
                 var cliExample = new Example();
                 cliExample.Title = example.XPathSelectElement("desc_signature/desc_addname").Value;
-                cliExample.Code = example.XPathSelectElement("desc_content/paragraph").Value;
+                cliExample.Code = DedentInnerXML(example.XPathSelectElement("desc_content/paragraph")).Value;
                 command.Examples.Add(cliExample);
             }
 
@@ -699,6 +724,7 @@ namespace AzCliDocPreprocessor
             if (element == null)
                 return string.Empty;
 
+            DedentInnerXML(element);
             return resolveHyperLink ? ResolveHyperLink(element) : element.Value;
         }
 
