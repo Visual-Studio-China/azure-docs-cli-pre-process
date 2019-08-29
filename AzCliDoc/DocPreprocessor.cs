@@ -511,7 +511,7 @@ namespace AzCliDocPreprocessor
                     switch (fieldName)
                     {
                         case "summary":
-                            cliArg.Summary = fieldValue;
+                            cliArg.Summary = EscapeAsterisk(fieldValue);
                             break;
                         case "description":
                             cliArg.Description = fieldValue;
@@ -588,6 +588,21 @@ namespace AzCliDocPreprocessor
             throw new ApplicationException(string.Format("UNKNOW field_body:{0}", field.Value));
         }
 
+        /// <summary>
+        /// for issue: https://github.com/Azure/azure-cli/issues/4869
+        /// </summary>
+        /// <param name="content"></param>
+        /// <returns></returns>
+        private string EscapeAsterisk(string content)
+        {
+            return content.Replace("*", "\\*");
+        }
+
+        /// <summary>
+        /// for the issue: https://github.com/MicrosoftDocs/azure-docs-cli/issues/1569
+        /// </summary>
+        /// <param name="element"></param>
+        /// <returns></returns>
         private XElement DedentInnerXML(XElement element)
         {
             var content = element.Nodes().Aggregate("", (b, node) => b += node.ToString());
