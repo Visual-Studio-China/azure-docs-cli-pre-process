@@ -213,6 +213,7 @@ namespace AzCliDocPreprocessor
                 }
 
                 combinedYml.Add(extensionsReference);
+                HandleAllDualPuposeTocNode(combinedYml);
 
                 // Saves TOC
                 using (var writer = new StreamWriter(targetYmlPath, false))
@@ -236,6 +237,36 @@ namespace AzCliDocPreprocessor
             }
 
             Directory.Delete(extFolder, true);
+        }
+
+
+        /// <summary>
+        /// https://ceapex.visualstudio.com/Engineering/_workitems/edit/225978
+        /// </summary>
+        /// <param name="nodes"></param>
+        private void HandleAllDualPuposeTocNode(List<AzureCliUniversalTOC> nodes)
+        {
+            if (nodes == null) return;
+
+            foreach (var node in nodes)
+            {
+                HandleOneDualPuposeTocNode(node);
+                HandleAllDualPuposeTocNode(node.items);
+            }
+        }
+
+        private void HandleOneDualPuposeTocNode(AzureCliUniversalTOC node)
+        {
+            if(!string.IsNullOrEmpty(node.uid) && node.items != null && node.items.Count() > 0)
+            {
+                node.items.Insert(0, new AzureCliUniversalTOC()
+                {
+                    name = "Overview",
+                    uid = node.uid,
+                    displayName = node.displayName
+                });
+                node.uid = null;
+            }
         }
 
         private string GetXmlOutputFolder(string xmlPath)
