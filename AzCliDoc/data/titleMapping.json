@@ -284,7 +284,7 @@
 		"PageTitle": "Data Lake Analytics catalogs"
 	},
 	"az dla catalog assembly": {
-		"TocTitle": "Assembly",
+		"TocTitle": "",
 		"PageTitle": "Data Lake Analytics catalog assemblies"
 	},
 	"az dla catalog credential": {
@@ -382,6 +382,10 @@
 	"az group deployment operation": {
 		"TocTitle": "Operations",
 		"PageTitle": "Deployment operations"
+	},
+	"az hdinsight": {
+		"TocTitle": "HDInsight",
+		"PageTitle": "HDInsight"
 	},
 	"az image": {
 		"TocTitle": "VM Images",
@@ -960,8 +964,8 @@
 		"PageTitle": "Storage container policies"
 	},
 	"az storage cors": {
-		"TocTitle": "Cross-origin resorce sharing",
-		"PageTitle": "Cross-origin resorce sharing"
+		"TocTitle": "Cross-origin resource sharing",
+		"PageTitle": "Cross-origin resource sharing"
 	},
 	"az storage directory": {
 		"TocTitle": "Directories",
@@ -1119,8 +1123,8 @@
 		"TocTitle": "Web Apps",
 		"PageTitle": "Web Apps"
 	},
-	"az ams": {
-		"TocTitle": "Azure Media Services",
-		"PageTitle": "Azure Media Services (AMS)"
-	}	
+  "az ams": {
+    "TocTitle": "Azure Media Services",
+    "PageTitle": "Azure Media Services (AMS)"
+  }	
 }
