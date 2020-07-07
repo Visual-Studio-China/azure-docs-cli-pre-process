@@ -10,6 +10,7 @@ using System.Web.Script.Serialization;
 using System.Xml.Linq;
 using System.Xml.XPath;
 using Microsoft.DocAsCode.Common;
+using Microsoft.DocAsCode.EntityModel.Plugins.OpenPublishing.AzureCli.Model.Model.SDP;
 
 namespace AzCliDocPreprocessor
 {
@@ -387,7 +388,7 @@ namespace AzCliDocPreprocessor
                 {
                     writer.WriteLine(YamlMimeProcessor);
                     PrepareMetaData(commandGroup.Value);
-                    YamlUtility.Serialize(writer, commandGroup.Value);
+                    YamlUtility.Serialize(writer, SDPCLIGroup.FromUniversalModel(commandGroup.Value));
                 }
             }
 
