@@ -36,6 +36,7 @@ namespace Microsoft.DocAsCode.EntityModel.Plugins.OpenPublishing.AzureCli.Model.
 
             var result = new SDPDirectCommands()
             {
+                Uid = item.Uid,
                 Name = item.Name,
                 Summary = item.Summary,
                 Description = item.Description,

@@ -48,7 +48,7 @@ namespace Microsoft.DocAsCode.EntityModel.Plugins.OpenPublishing.AzureCli.Model.
                 result.Summary = root.Summary;
                 result.Description = root.Description;
 
-                result.DirectCommands = model.Items.Skip(1).Select(SDPDirectCommands.FromUniversalItem).ToList();
+                result.DirectCommands = model.Items.Count() == 1 ? null : model.Items.Skip(1).Select(SDPDirectCommands.FromUniversalItem).ToList();
                 result.Commands = model.Commands == null ? null : model.Commands.Select(command => command.Uid).ToList();
                 result.GlobalParameters = model.GlobalParameters == null ? null : model.GlobalParameters.Select(SDPParameter.FromUniversalParameter).ToList();
 
