@@ -49,7 +49,7 @@ namespace Microsoft.DocAsCode.EntityModel.Plugins.OpenPublishing.AzureCli.Model.
                 result.Description = root.Description;
 
                 result.DirectCommands = model.Items.Count() == 1 ? null : model.Items.Skip(1).Select(SDPDirectCommands.FromUniversalItem).ToList();
-                result.Commands = model.Commands == null ? null : model.Commands.Select(command => command.Uid).ToList();
+                result.Commands = model.Commands == null || !model.Commands.Any() ? null : model.Commands.Select(command => command.Uid).ToList();
                 result.GlobalParameters = model.GlobalParameters == null ? null : model.GlobalParameters.Select(SDPParameter.FromUniversalParameter).ToList();
 
                 CopyKeyValue(model.Metadata, result.Metadata, "original_content_git_url");

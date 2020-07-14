@@ -11,6 +11,7 @@ using System.Xml.Linq;
 using System.Xml.XPath;
 using Microsoft.DocAsCode.Common;
 using Microsoft.DocAsCode.EntityModel.Plugins.OpenPublishing.AzureCli.Model.Model.SDP;
+using System.Net;
 
 namespace AzCliDocPreprocessor
 {
@@ -538,7 +539,7 @@ namespace AzCliDocPreprocessor
                 var fields = arg.XPathSelectElements("desc_content/field_list/field");
                 foreach (var field in fields)
                 {
-                    var fieldValue = ExtractFieldValue(field);
+                    var fieldValue = WebUtility.HtmlDecode(ExtractFieldValue(field));
                     var fieldName = field.Element("field_name").Value.ToLower();
                     switch (fieldName)
                     {
@@ -711,9 +712,9 @@ namespace AzCliDocPreprocessor
                 name = string.Format("{0} {1}", CommandGroupConfiguration.CommandPrefix, name);
             }
             var ids = name.Split();
-            var summary = ExtractFieldValueByName(xElement, "Summary");
-            var description = ExtractFieldValueByName(xElement, "Description");
-            var docSource = ExtractFieldValueByName(xElement, "Doc Source", false);
+            var summary = WebUtility.HtmlDecode(ExtractFieldValueByName(xElement, "Summary"));
+            var description = WebUtility.HtmlDecode(ExtractFieldValueByName(xElement, "Description"));
+            var docSource = WebUtility.HtmlDecode((ExtractFieldValueByName(xElement, "Doc Source", false)));
 
             AzureCliViewModel command = new AzureCliViewModel()
             {
