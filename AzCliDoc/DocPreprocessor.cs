@@ -18,7 +18,7 @@ namespace AzCliDocPreprocessor
     internal class DocPreprocessor
     {
         private const string FormalAzGroupName = "Reference";
-        private const string YamlMimeProcessor = "### YamlMime:CLIGroup";
+        private const string YamlMimeProcessor = "### YamlMime:AzureCLIGroup";
         private const string AutoGenFolderName = "docs-ref-autogen";
         private const string ReferenceIndexFileName = "reference-index";
         private const string ExtensionReferenceIndexFileName = "index";

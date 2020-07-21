@@ -80,7 +80,6 @@
     <Compile Include="Model\Parameter.cs" />
     <Compile Include="Model\SDP\SDPCLIGroup.cs" />
     <Compile Include="Model\SDP\SDPDirectCommands.cs" />
-    <Compile Include="Model\SDP\SDPSource.cs" />
     <Compile Include="Model\SDP\SDPParameter.cs" />
     <Compile Include="Model\SDP\SDPExample.cs" />
     <Compile Include="Model\SourceExtent.cs" />
