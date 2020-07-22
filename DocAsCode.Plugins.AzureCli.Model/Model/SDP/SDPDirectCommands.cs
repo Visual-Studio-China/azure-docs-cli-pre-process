@@ -53,7 +53,7 @@ namespace Microsoft.DocAsCode.EntityModel.Plugins.OpenPublishing.AzureCli.Model.
             // optional parameters
             if(item.Parameters != null)
             {
-                var parameters = item.Parameters.Select(SDPParameter.FromUniversalParameter).OrderBy(p => p.Name.ToLowerInvariant()).ToList();
+                var parameters = item.Parameters.Select(SDPParameter.FromUniversalParameter).OrderBy(p => p.Name.ToLowerInvariant(), StringComparer.Ordinal).ToList();
                 result.RequiredParameters = parameters.Where(p => p.IsRequired).ToList();
                 result.OptionalParameters = parameters.Where(p => !p.IsRequired).ToList();
 
