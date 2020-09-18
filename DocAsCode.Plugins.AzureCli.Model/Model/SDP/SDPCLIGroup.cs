@@ -53,6 +53,9 @@ namespace Microsoft.DocAsCode.EntityModel.Plugins.OpenPublishing.AzureCli.Model.
                 result.GlobalParameters = model.GlobalParameters == null ? null : model.GlobalParameters.Select(SDPParameter.FromUniversalParameter).ToList();
 
                 CopyKeyValue(model.Metadata, result.Metadata, "doc_source_url_repo");
+                CopyKeyValue(model.Metadata, result.Metadata, "original_content_git_url");
+                CopyKeyValue(model.Metadata, result.Metadata, "gitcommit");
+                CopyKeyValue(model.Metadata, result.Metadata, "updated_at");
                 CopyKeyValue(model.Metadata, result.Metadata, "ms.date");
                 CopyKeyValue(model.Metadata, result.Metadata, "description");
             }
