@@ -38,6 +38,9 @@ namespace AzCliDocPreprocessor
         [Option('f', "filter", Required = false)]
         public string CommandFilter { get; set; }
 
+        [Option("extInfo", Required = false)]
+        public string ExtensionInformationFile { get; set; }
+
         [Option('g', "group", Required = false, DefaultValue = "azure")]
         public string GroupName { get; set; }
 

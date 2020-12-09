@@ -15,6 +15,9 @@ namespace Microsoft.DocAsCode.EntityModel.Plugins.OpenPublishing.AzureCli.Model.
         [YamlMember(Alias = "name")]
         public string Name { get; set; }
 
+        [YamlMember(Alias = "extensionInformation")]
+        public string ExtensionInformation { get; set; }
+
         [YamlMember(Alias = "summary")]
         public string Summary { get; set; }
 

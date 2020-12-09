@@ -24,17 +24,24 @@ namespace AzCliDocPreprocessor
         private const string ExtensionReferenceIndexFileName = "index";
         private const string ExtensionGlobalPrefix = "ext";
 
+        // from config
+        private AzureCLIConfig AzureCLIConfig { get; set; }
+        private ExtensionsInformation ExtensionsInformation { get; set; }
+        private List<AzureCliUniversalParameter> GlobalParameters { get; set; } = new List<AzureCliUniversalParameter>();
+        private Dictionary<string, TocTitleMappings> TitleMappings { get; set; } = new Dictionary<string, TocTitleMappings>();
+
+        // for each run of ind.xml
         private bool IsExtensionXml { get; set; }
         private string ExtensionXmlFolder { get; set; }
+        private ExtensionInformation ExtensionInformation { get; set; }
+        private string ExtensionInformationString { get; set; }
         private Options Options { get; set; }
         private CommandGroupConfiguration CommandGroupConfiguration { get; set; }
         private List<AzureCliViewModel> CommandGroups { get; set; } = new List<AzureCliViewModel>();
-        private List<AzureCliUniversalParameter> GlobalParameters { get; set; } = new List<AzureCliUniversalParameter>();
         private List<string> SourceXmlPathSet = new List<string>();
         private List<string> ExtensionXmlPathSet = new List<string>();
         private Dictionary<string, CommitInfo> DocCommitIdMap { get; set; } = new Dictionary<string, CommitInfo>();
         private Dictionary<string, AzureCliViewModel> NameCommandGroupMap { get; set; } = new Dictionary<string, AzureCliViewModel>();
-        private Dictionary<string, TocTitleMappings> TitleMappings { get; set; } = new Dictionary<string, TocTitleMappings>();
         private Dictionary<string, StringBuilder> TocFileContent { get; set; } = new Dictionary<string, StringBuilder>();
         private Dictionary<string, AzureCliUniversalViewModel> UniversalCommandGroups { get; set; } = new Dictionary<string, AzureCliUniversalViewModel>();
 
@@ -55,6 +62,10 @@ namespace AzCliDocPreprocessor
 
                 // the extension group such as 'azure-cli-iot-ext'
                 ExtensionXmlFolder = Path.GetDirectoryName(extensionXmlPath).Replace(Path.HasExtension(Options.ExtensionXmlPath) ? Path.GetDirectoryName(Options.ExtensionXmlPath) : Options.ExtensionXmlPath, "").TrimStart('\\');
+                ExtensionInformation = ExtensionsInformation.Extensions[ExtensionXmlFolder].Last();
+                ExtensionInformationString = AzureCLIConfig.ExtensionInformationTemplate
+                    .Replace("{EXTENSION_NAME}", ExtensionXmlFolder)
+                    .Replace("{MIN_CORE_VERSION}", ExtensionInformation.Metadata.MinCliCoreVersion);
                 ProccessOneXml(extensionXmlPath);
             }
 
@@ -364,8 +375,10 @@ namespace AzCliDocPreprocessor
                 }
             }
 
-            GlobalParameters = GetGlobalParameters();
-            TitleMappings = GetTitleMappings();
+            AzureCLIConfig = GetAzureCLIConfig();
+            ExtensionsInformation = GetExtensionsInformation();
+            GlobalParameters = AzureCLIConfig.GlobalParameters ?? GetGlobalParameters();
+            TitleMappings = AzureCLIConfig.TitleMapping ?? GetTitleMappings();
             if (Enum.GetNames(typeof(CommandGroupType)).Contains(Options.GroupName.ToUpper()))
                 CommandGroupConfiguration = ParserCommandGroupConfiguration((CommandGroupType)Enum.Parse(typeof(CommandGroupType), Options.GroupName.ToUpper(), true));
             else
@@ -389,7 +402,9 @@ namespace AzCliDocPreprocessor
                 {
                     writer.WriteLine(YamlMimeProcessor);
                     PrepareMetaData(commandGroup.Value);
-                    YamlUtility.Serialize(writer, SDPCLIGroup.FromUniversalModel(commandGroup.Value));
+                    var group = SDPCLIGroup.FromUniversalModel(commandGroup.Value);
+                    group.ExtensionInformation = ExtensionInformationString?.Replace("{COMMAND_GROUP}", group.Name);
+                    YamlUtility.Serialize(writer, group);
                 }
             }
 
@@ -774,6 +789,16 @@ namespace AzCliDocPreprocessor
 
             DedentInnerXML(element);
             return resolveHyperLink ? ResolveHyperLink(element) : element.Value;
+        }
+
+        private AzureCLIConfig GetAzureCLIConfig()
+        {
+            return new JavaScriptSerializer().Deserialize<AzureCLIConfig>(new StreamReader($"{Options.DestDirectory}/.docsreference.azurecli.json").ReadToEnd());
+        }
+
+        private ExtensionsInformation GetExtensionsInformation()
+        {
+            return JsonConvert.DeserializeObject<ExtensionsInformation>(new StreamReader(Options.ExtensionInformationFile).ReadToEnd());
         }
 
         private List<AzureCliUniversalParameter> GetGlobalParameters()
