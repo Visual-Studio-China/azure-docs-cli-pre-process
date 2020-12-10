@@ -41,6 +41,9 @@ namespace AzCliDocPreprocessor
         [Option("extInfo", Required = false)]
         public string ExtensionInformationFile { get; set; }
 
+        [Option("config", Required = false)]
+        public string AzureCLIConfigFile { get; set; }
+
         [Option('g', "group", Required = false, DefaultValue = "azure")]
         public string GroupName { get; set; }
 

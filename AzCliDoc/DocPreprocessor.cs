@@ -793,7 +793,7 @@ namespace AzCliDocPreprocessor
 
         private AzureCLIConfig GetAzureCLIConfig()
         {
-            return new JavaScriptSerializer().Deserialize<AzureCLIConfig>(new StreamReader($"{Options.DestDirectory}/.docsreference.azurecli.json").ReadToEnd());
+            return new JavaScriptSerializer().Deserialize<AzureCLIConfig>(new StreamReader(Options.AzureCLIConfigFile).ReadToEnd());
         }
 
         private ExtensionsInformation GetExtensionsInformation()
