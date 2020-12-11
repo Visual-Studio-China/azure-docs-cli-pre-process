@@ -62,10 +62,16 @@ namespace AzCliDocPreprocessor
 
                 // the extension group such as 'azure-cli-iot-ext'
                 ExtensionXmlFolder = Path.GetDirectoryName(extensionXmlPath).Replace(Path.HasExtension(Options.ExtensionXmlPath) ? Path.GetDirectoryName(Options.ExtensionXmlPath) : Options.ExtensionXmlPath, "").TrimStart('\\');
-                ExtensionInformation = ExtensionsInformation.Extensions[ExtensionXmlFolder].Last();
-                ExtensionInformationString = AzureCLIConfig.ExtensionInformationTemplate
-                    .Replace("{EXTENSION_NAME}", ExtensionXmlFolder)
-                    .Replace("{MIN_CORE_VERSION}", ExtensionInformation.Metadata.MinCliCoreVersion);
+
+                if (AzureCLIConfig?.ExtensionInformationTemplate != null && ExtensionsInformation != null)
+                {
+                    ExtensionInformation = ExtensionsInformation.Extensions[ExtensionXmlFolder].Last();
+                    ExtensionInformationString = AzureCLIConfig.ExtensionInformationTemplate
+                        .Replace("{EXTENSION_NAME}", ExtensionXmlFolder)
+                        .Replace("{MIN_CORE_VERSION}", ExtensionInformation.Metadata.MinCliCoreVersion);
+                }
+                else ExtensionInformationString = null;
+
                 ProccessOneXml(extensionXmlPath);
             }
 
@@ -377,8 +383,8 @@ namespace AzCliDocPreprocessor
 
             AzureCLIConfig = GetAzureCLIConfig();
             ExtensionsInformation = GetExtensionsInformation();
-            GlobalParameters = AzureCLIConfig.GlobalParameters ?? GetGlobalParameters();
-            TitleMappings = AzureCLIConfig.TitleMapping ?? GetTitleMappings();
+            GlobalParameters = AzureCLIConfig?.GlobalParameters ?? GetGlobalParameters();
+            TitleMappings = AzureCLIConfig?.TitleMapping ?? GetTitleMappings();
             if (Enum.GetNames(typeof(CommandGroupType)).Contains(Options.GroupName.ToUpper()))
                 CommandGroupConfiguration = ParserCommandGroupConfiguration((CommandGroupType)Enum.Parse(typeof(CommandGroupType), Options.GroupName.ToUpper(), true));
             else
@@ -793,12 +799,20 @@ namespace AzCliDocPreprocessor
 
         private AzureCLIConfig GetAzureCLIConfig()
         {
-            return new JavaScriptSerializer().Deserialize<AzureCLIConfig>(new StreamReader(Options.AzureCLIConfigFile).ReadToEnd());
+            if (Options.AzureCLIConfigFile != null)
+            {
+                return new JavaScriptSerializer().Deserialize<AzureCLIConfig>(new StreamReader(Options.AzureCLIConfigFile).ReadToEnd());
+            }
+            return null;
         }
 
         private ExtensionsInformation GetExtensionsInformation()
         {
-            return JsonConvert.DeserializeObject<ExtensionsInformation>(new StreamReader(Options.ExtensionInformationFile).ReadToEnd());
+            if(Options.ExtensionInformationFile != null)
+            {
+                return JsonConvert.DeserializeObject<ExtensionsInformation>(new StreamReader(Options.ExtensionInformationFile).ReadToEnd());
+            }
+            return null;
         }
 
         private List<AzureCliUniversalParameter> GetGlobalParameters()
