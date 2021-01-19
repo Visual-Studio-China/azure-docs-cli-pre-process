@@ -12,5 +12,14 @@ namespace AzCliDocPreprocessor
         public string ExtensionInformationTemplate { get; set; }
         public Dictionary<string, TocTitleMappings> TitleMapping { get; set; }
         public List<AzureCliUniversalParameter> GlobalParameters { get; set; }
+        public List<ServicePage> ServicePages { get; set; }
+    }
+
+    public class ServicePage
+    {
+        public string Name { get; set; }
+        public string Summary { get; set; }
+        public List<string> CommandGroups { get; set; }
+        public List<ServicePage> Children { get; set; }
     }
 }

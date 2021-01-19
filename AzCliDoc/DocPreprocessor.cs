@@ -20,6 +20,7 @@ namespace AzCliDocPreprocessor
         private const string FormalAzGroupName = "Reference";
         private const string YamlMimeProcessor = "### YamlMime:AzureCLIGroup";
         private const string AutoGenFolderName = "docs-ref-autogen";
+        private const string ServicePageFolderName = "service-page";
         private const string ReferenceIndexFileName = "reference-index";
         private const string ExtensionReferenceIndexFileName = "index";
         private const string ExtensionGlobalPrefix = "ext";
@@ -44,6 +45,13 @@ namespace AzCliDocPreprocessor
         private Dictionary<string, AzureCliViewModel> NameCommandGroupMap { get; set; } = new Dictionary<string, AzureCliViewModel>();
         private Dictionary<string, StringBuilder> TocFileContent { get; set; } = new Dictionary<string, StringBuilder>();
         private Dictionary<string, AzureCliUniversalViewModel> UniversalCommandGroups { get; set; } = new Dictionary<string, AzureCliUniversalViewModel>();
+
+        // all the data
+        // key => moniker
+        private Dictionary<string, SDPCLIGroup[]> CoreSDPGroups { get; set; } = new Dictionary<string, SDPCLIGroup[]>();
+        // key => extension name
+        private Dictionary<string, SDPCLIGroup[]> ExtensionSDPGroups { get; set; } = new Dictionary<string, SDPCLIGroup[]>();
+
 
         public bool Run(Options options)
         {
@@ -75,7 +83,7 @@ namespace AzCliDocPreprocessor
                 ProccessOneXml(extensionXmlPath);
             }
 
-            JoinExtensionToc();
+            OrganizeAndSave();
 
             return true;
         }
@@ -142,7 +150,7 @@ namespace AzCliDocPreprocessor
                 items.Add(new AzureCliUniversalItem()
                 {
                     Uid = commandGroup.Uid,
-                    Name = IsExtensionXml && isTopGroup ? ExtensionXmlFolder : commandGroup.Name,
+                    Name = commandGroup.Name,
                     Langs = new List<string>() { CommandGroupConfiguration.Language },
                     Summary = commandGroup.Summary,
                     Description = commandGroup.Description,
@@ -203,61 +211,172 @@ namespace AzCliDocPreprocessor
                 UniversalCommandGroups.Add(commandGroup.Name, universalViewModel);
             }
 
-            Save(GetXmlOutputFolder(oneXmlPath));
+            SaveToSDPData(oneXmlPath);
         }
 
-        private void JoinExtensionToc()
+        private void OrganizeAndSave()
         {
-            string extFolder = Path.Combine(Options.DestDirectory, ExtensionGlobalPrefix);
-            if (!Directory.Exists(extFolder)) return;
-
-            foreach (string sourceXmlPath in SourceXmlPathSet)
+            foreach (var kvp in CoreSDPGroups)
             {
-                IsExtensionXml = false;
-                string targetYmlPath = Path.Combine(GetXmlOutputFolder(sourceXmlPath), "TOC.yml");
-                var combinedYml = YamlUtility.Deserialize<List<AzureCliUniversalTOC>>(targetYmlPath);
-                var extensionsReference = new AzureCliUniversalTOC
+                // Merge core and extension groups
+                // todo: Should we merge the command?
+                Dictionary<string, SDPCLIGroup> AllGroups = kvp.Value.ToDictionary(group => group.Name);
+                foreach (var extkvp in ExtensionSDPGroups)
                 {
-                    name = "Extensions Reference",
-                    items = new List<AzureCliUniversalTOC>()
-                };
-
-                foreach (var extensionYmlPath in Directory.GetFiles(extFolder, "TOC.yml", SearchOption.AllDirectories))
-                {
-                    var extensionYml = YamlUtility.Deserialize<List<AzureCliUniversalTOC>>(extensionYmlPath);
-                    var group = extensionYmlPath.Replace(extFolder, "").TrimStart('\\').Split('\\').First();
-                    var extensionRoot = extensionYml.First();
-                    extensionRoot.name = group;
-                    extensionsReference.items.Add(extensionRoot);
-                }
-
-                combinedYml.Add(extensionsReference);
-                HandleAllDualPuposeTocNode(combinedYml);
-
-                // Saves TOC
-                using (var writer = new StreamWriter(targetYmlPath, false))
-                {
-                    YamlUtility.Serialize(writer, combinedYml);
-                }
-
-                // copy extension yml
-                foreach (var file in Directory.GetFiles(extFolder, "*.*", SearchOption.AllDirectories))
-                {
-                    if(!Path.GetFileName(file).Equals("toc.yml", StringComparison.OrdinalIgnoreCase))
+                    foreach (var extGroup in extkvp.Value)
                     {
-                        string targetPath = file.Replace(Options.DestDirectory, GetXmlOutputFolder(sourceXmlPath));
-                        if (!Directory.Exists(Path.GetDirectoryName(targetPath)))
+                        if (AllGroups.ContainsKey(extGroup.Name))
                         {
-                            Directory.CreateDirectory(Path.GetDirectoryName(targetPath));
+                            var group = AllGroups[extGroup.Name];
+
+                            // keep group.Uid (should be the same)
+                            // keep group.Name (should be the same)
+                            // ignore extGroup.ExtensionInformation (group is introduced by cli core, just some sub groups/commands from extension)
+                            // keep group.Summary (TBD)
+                            // keep group.Description (TBD)
+                            // merge DirectCommands
+                            if (extGroup.DirectCommands?.Count > 0)
+                            {
+                                if (group.DirectCommands?.Count > 0)
+                                {
+                                    group.DirectCommands = group.DirectCommands.Union(extGroup.DirectCommands, DirectCommandsComparer._default).ToList();
+                                }
+                                else
+                                {
+                                    group.DirectCommands = extGroup.DirectCommands;
+                                }
+                            }
+                            // merge Commands
+                            if (extGroup.Commands?.Count > 0)
+                            {
+                                if (group.Commands?.Count > 0)
+                                {
+                                    group.Commands = group.Commands.Union(extGroup.Commands).ToList();
+                                }
+                                else
+                                {
+                                    group.Commands = extGroup.Commands;
+                                }
+                            }
+                            // keep group.GlobalParameters (should be the same)
+                            // keep group.Metadata (TBD)
                         }
-                        File.Copy(file, targetPath, true);
+                        else
+                        {
+                            AllGroups.Add(extGroup.Name, extGroup);
+                        }
                     }
                 }
-            }
 
-            Directory.Delete(extFolder, true);
+                // Generate service pages
+                Dictionary<string, SDPCLIGroup> AllServicePages = new Dictionary<string, SDPCLIGroup>();
+                AllServicePages = AzureCLIConfig.ServicePages.ToDictionary(
+                    sp => sp.Name, 
+                    sp => new SDPCLIGroup() {
+                        Uid = GetUid(sp.Name, true),
+                        Name = sp.Name,
+                        Summary = sp.Summary,
+                        Commands = sp.CommandGroups.Select(g => GetUid(g)).ToList()
+                    });
+
+                // Write to yamls
+                var destDirectory = Path.Combine(Options.DestDirectory, kvp.Key, AutoGenFolderName);
+                foreach (var commandGroup in AllGroups)
+                {
+                    var relativeDocPath = PrepareDocFilePath(destDirectory, commandGroup.Key);
+                    using (var writer = new StreamWriter(Path.Combine(destDirectory, relativeDocPath), false))
+                    {
+                        writer.WriteLine(YamlMimeProcessor);
+                        YamlUtility.Serialize(writer, commandGroup.Value);
+                    }
+                }
+
+                var servicePageDestDirectory = Path.Combine(Options.DestDirectory, kvp.Key, AutoGenFolderName, ServicePageFolderName);
+                CreateDirectoryIfNotExist(servicePageDestDirectory);
+                foreach (var servicePage in AllServicePages)
+                {
+                    using (var writer = new StreamWriter(Path.Combine(servicePageDestDirectory, servicePage.Key + ".yml"), false))
+                    {
+                        writer.WriteLine(YamlMimeProcessor);
+                        YamlUtility.Serialize(writer, servicePage.Value);
+                    }
+                }
+
+                // Prepare toc
+                var toc = new List<AzureCliUniversalTOC>();
+                var root = new AzureCliUniversalTOC()
+                {
+                    name = "Reference",
+                    items = new List<AzureCliUniversalTOC>()
+                };
+                toc.Add(root);
+
+                // Creat A-Z TOC
+                var fullToc = GroupToToc(CommandGroupConfiguration.CommandPrefix, AllGroups);
+                fullToc.name = "List A - Z";
+                root.items.Add(fullToc);
+
+                // Create merge group
+                var serviceToc = AzureCLIConfig.ServicePages.Select(sp => new AzureCliUniversalTOC()
+                {
+                    name = sp.Name,
+                    uid = GetUid(sp.Name, true),
+                    //displayName = "",
+                    //items = null
+                });
+                root.items.AddRange(serviceToc);
+
+                HandleAllDualPuposeTocNode(toc);
+                using (var writer = new StreamWriter(Path.Combine(destDirectory, "TOC.yml"), false))
+                {
+                    YamlUtility.Serialize(writer, toc);
+                }
+            }
         }
 
+        private AzureCliUniversalTOC GroupToToc(string name, Dictionary<string, SDPCLIGroup> AllGroups)
+        {
+            var group = AllGroups[name];
+            var result = new AzureCliUniversalTOC()
+            {
+                name = GetLastGroupName(group.Name),
+                uid = group.Uid,
+                displayName = group.Name,
+                items = new List<AzureCliUniversalTOC>()
+            };
+            //if (TitleMappings.TryGetValue(group.Name, out var toc))
+            //{
+            //    if (!toc.Show) return null;
+            //    result.name = toc.TocTitle;
+            //}
+
+            // commands, not sort here, keep it the same order as group page
+            if(group.DirectCommands != null)
+            {
+                result.items.AddRange(group.DirectCommands.Select(CommandToToc));
+            }
+
+            // group, sort from A - Z
+            var groupWordCount = GetWordCount(group.Name);
+            var tocChildGroups = AllGroups.Values.Where(c => GetWordCount(c.Name) == groupWordCount + 1 && c.Name.StartsWith(group.Name + " "));
+
+            result.items.AddRange(tocChildGroups.OrderBy(g => GetLastGroupName(g.Name))
+                .Select(g => GroupToToc(g.Name, AllGroups))
+                .OfType<AzureCliUniversalTOC>());
+
+            return result;
+        }
+
+        private AzureCliUniversalTOC CommandToToc(SDPDirectCommands command)
+        {
+            var result = new AzureCliUniversalTOC()
+            {
+                name = GetLastGroupName(command.Name),
+                uid = command.Uid,
+                displayName = command.Name
+            };
+            return result;
+        }
 
         /// <summary>
         /// https://ceapex.visualstudio.com/Engineering/_workitems/edit/225978
@@ -280,23 +399,11 @@ namespace AzCliDocPreprocessor
             {
                 node.items.Insert(0, new AzureCliUniversalTOC()
                 {
-                    name = "Overview",
+                    name = "Summary",
                     uid = node.uid,
                     displayName = node.displayName
                 });
                 node.uid = null;
-            }
-        }
-
-        private string GetXmlOutputFolder(string xmlPath)
-        {
-            if (IsExtensionXml == false)
-            {
-                return Path.Combine(Options.DestDirectory, Path.GetDirectoryName(xmlPath).Replace(Path.HasExtension(Options.SourceXmlPath) ? Path.GetDirectoryName(Options.SourceXmlPath) : Options.SourceXmlPath, "").Replace("\\", ""), AutoGenFolderName);
-            }
-            else
-            {
-                return Path.Combine(Options.DestDirectory, ExtensionGlobalPrefix, ExtensionXmlFolder);
             }
         }
 
@@ -391,34 +498,28 @@ namespace AzCliDocPreprocessor
                 CommandGroupConfiguration = ParserCommandGroupConfiguration(CommandGroupType.AZURE);
         }
 
-        private void Save(string destDirectory)
+        private void SaveToSDPData(string xmlPath)
         {
-            if (!Directory.Exists(destDirectory))
+            if (IsExtensionXml)
             {
-                Directory.CreateDirectory(destDirectory);
-            }
-            // Saves groups
-            CommandGroups.Sort((group1, group2) => string.CompareOrdinal(group1.Name, group2.Name));
-            Dictionary<string, string> groupToFilePathMap = new Dictionary<string, string>();
-            foreach (var commandGroup in UniversalCommandGroups)
-            {
-                var relativeDocPath = PrepareDocFilePath(destDirectory, commandGroup.Key);
-                groupToFilePathMap.Add(commandGroup.Key, relativeDocPath.Replace('\\', '/'));
-                using (var writer = new StreamWriter(Path.Combine(destDirectory, relativeDocPath), false))
-                {
-                    writer.WriteLine(YamlMimeProcessor);
-                    PrepareMetaData(commandGroup.Value);
-                    var group = SDPCLIGroup.FromUniversalModel(commandGroup.Value);
+                var extensionName = Path.GetFileName(Path.GetDirectoryName(xmlPath));
+                var groups = UniversalCommandGroups.Values.Select(udp => {
+                    PrepareMetaData(udp);
+                    var group = SDPCLIGroup.FromUniversalModel(udp);
                     group.ExtensionInformation = ExtensionInformationString?.Replace("{COMMAND_GROUP}", group.Name);
-                    YamlUtility.Serialize(writer, group);
-                }
+                    return group;
+                }).ToArray();
+                ExtensionSDPGroups.Add(extensionName, groups);
             }
-
-            // Saves TOC
-            using (var writer = new StreamWriter(Path.Combine(destDirectory, "TOC.yml"), false))
+            else
             {
-                if (NameCommandGroupMap.ContainsKey(CommandGroupConfiguration.CommandPrefix))
-                    YamlUtility.Serialize(writer, new List<AzureCliUniversalTOC>() { PrepareFusionToc(NameCommandGroupMap[CommandGroupConfiguration.CommandPrefix], groupToFilePathMap) });
+                var moniker = Path.GetFileName(Path.GetDirectoryName(xmlPath));
+                var groups = UniversalCommandGroups.Values.Select(udp => {
+                    PrepareMetaData(udp);
+                    var group = SDPCLIGroup.FromUniversalModel(udp);
+                    return group;
+                }).ToArray();
+                CoreSDPGroups.Add(moniker, groups);
             }
         }
 
@@ -496,15 +597,22 @@ namespace AzCliDocPreprocessor
             return CommandGroups.FindAll(c => GetWordCount(c.Name) == groupWordCount + 1 && c.Name.StartsWith(groupName + " "));
         }
 
+        private static string GetLastGroupName(string name)
+        {
+            return name.Split(' ').Last();
+        }
+
         private static int GetWordCount(string name)
         {
             return name.Count(c => c == ' ') + 1;
         }
 
-        private string GetUid(string commandName)
+        private string GetUid(string commandName, bool isServicePage = false)
         {
+            if (isServicePage) commandName = "sp-" + commandName;
+
             string raw = commandName.Replace(' ', '_').Replace('-', '_');
-            return IsExtensionXml ? $"{ExtensionGlobalPrefix}_{ExtensionXmlFolder.Replace("\\","_")}_{raw}": raw;
+            return raw;
         }
 
         private string PrepareDocFilePath(string destDirectory, string name)
@@ -512,14 +620,7 @@ namespace AzCliDocPreprocessor
             var pathSegments = name.Split(' ');
             if (pathSegments.Length == 1)
             {
-                if (IsExtensionXml)
-                {
-                    return ExtensionReferenceIndexFileName + Options.DocExtension;
-                }
-                else
-                {
-                    return ReferenceIndexFileName + Options.DocExtension;
-                }
+                return ReferenceIndexFileName + Options.DocExtension;
             }
 
             string relativePath = string.Empty;
@@ -848,5 +949,14 @@ namespace AzCliDocPreprocessor
             }
             return filePaths;
         }
+    }
+
+    class DirectCommandsComparer : IEqualityComparer<SDPDirectCommands>
+    {
+        public static DirectCommandsComparer _default = new DirectCommandsComparer();
+
+        public bool Equals(SDPDirectCommands x, SDPDirectCommands y) => x.Name == y.Name;
+
+        public int GetHashCode(SDPDirectCommands obj) => obj.Name.GetHashCode();
     }
 }
