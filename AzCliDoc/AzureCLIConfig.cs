@@ -17,9 +17,10 @@ namespace AzCliDocPreprocessor
 
     public class ServicePage
     {
+        public bool IsFullListPage { get; set; }
         public string Name { get; set; }
+        public string Title { get; set; }
         public string Summary { get; set; }
         public List<string> CommandGroups { get; set; }
-        public List<ServicePage> Children { get; set; }
     }
 }

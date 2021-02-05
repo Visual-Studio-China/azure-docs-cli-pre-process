@@ -17,10 +17,6 @@
         [JsonProperty("uid")]
         public string uid { get; set; }
 
-        [YamlMember(Alias = "displayName")]
-        [JsonProperty("displayName")]
-        public string displayName { get; set; }
-
         [YamlMember(Alias = "items")]
         [JsonProperty("items")]
         public List<AzureCliUniversalTOC> items { get; set; }

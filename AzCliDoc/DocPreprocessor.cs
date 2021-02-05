@@ -52,7 +52,6 @@ namespace AzCliDocPreprocessor
         // key => extension name
         private Dictionary<string, SDPCLIGroup[]> ExtensionSDPGroups { get; set; } = new Dictionary<string, SDPCLIGroup[]>();
 
-
         public bool Run(Options options)
         {
             Options = options;
@@ -218,8 +217,7 @@ namespace AzCliDocPreprocessor
         {
             foreach (var kvp in CoreSDPGroups)
             {
-                // Merge core and extension groups
-                // todo: Should we merge the command?
+                // Merge core and extension groups, no need to merge commands
                 Dictionary<string, SDPCLIGroup> AllGroups = kvp.Value.ToDictionary(group => group.Name);
                 foreach (var extkvp in ExtensionSDPGroups)
                 {
@@ -272,12 +270,37 @@ namespace AzCliDocPreprocessor
                 Dictionary<string, SDPCLIGroup> AllServicePages = new Dictionary<string, SDPCLIGroup>();
                 AllServicePages = AzureCLIConfig.ServicePages.ToDictionary(
                     sp => sp.Name, 
-                    sp => new SDPCLIGroup() {
+                    sp => new SDPCLIGroup()
+                    {
                         Uid = GetUid(sp.Name, true),
-                        Name = sp.Name,
+                        Name = sp.Title ?? sp.Name,
                         Summary = sp.Summary,
-                        Commands = sp.CommandGroups.Select(g => GetUid(g)).ToList()
+                        Commands = sp.IsFullListPage ? 
+                            GetChildGroups(CommandGroupConfiguration.CommandPrefix, AllGroups).Select(g => g.Uid).ToList() :
+                            sp.CommandGroups.Select(g => GetUid(g)).ToList()
                     });
+
+                // Prepare toc
+                var toc = new List<AzureCliUniversalTOC>();
+                var root = new AzureCliUniversalTOC()
+                {
+                    name = "Reference",
+                    items = new List<AzureCliUniversalTOC>()
+                };
+                toc.Add(root);
+
+                // Create Service Pages TOC
+                var serviceToc = AzureCLIConfig.ServicePages.Select(sp => new AzureCliUniversalTOC()
+                {
+                    name = sp.Name,
+                    uid = GetUid(sp.Name, true),
+                    items = sp.IsFullListPage ? 
+                        null :
+                        sp.CommandGroups.Select(groupName => GroupToToc(groupName, AllGroups)).OfType<AzureCliUniversalTOC>().ToList()
+                });
+                root.items.AddRange(serviceToc);
+
+                HandleAllDualPuposeTocNode(toc);
 
                 // Write to yamls
                 var destDirectory = Path.Combine(Options.DestDirectory, kvp.Key, AutoGenFolderName);
@@ -287,7 +310,15 @@ namespace AzCliDocPreprocessor
                     using (var writer = new StreamWriter(Path.Combine(destDirectory, relativeDocPath), false))
                     {
                         writer.WriteLine(YamlMimeProcessor);
-                        YamlUtility.Serialize(writer, commandGroup.Value);
+                        if(TitleMappings.TryGetValue(commandGroup.Key, out var mapping))
+                        {
+                            // Note: MemberwiseClone SDPCLIGroup here in case the update affects next iteration/moniker
+                            YamlUtility.Serialize(writer, commandGroup.Value.ShallowCopyWithName(mapping.PageTitle ?? mapping.TocTitle ?? commandGroup.Key));
+                        }
+                        else
+                        {
+                            YamlUtility.Serialize(writer, commandGroup.Value);
+                        }
                     }
                 }
 
@@ -302,31 +333,6 @@ namespace AzCliDocPreprocessor
                     }
                 }
 
-                // Prepare toc
-                var toc = new List<AzureCliUniversalTOC>();
-                var root = new AzureCliUniversalTOC()
-                {
-                    name = "Reference",
-                    items = new List<AzureCliUniversalTOC>()
-                };
-                toc.Add(root);
-
-                // Creat A-Z TOC
-                var fullToc = GroupToToc(CommandGroupConfiguration.CommandPrefix, AllGroups);
-                fullToc.name = "List A - Z";
-                root.items.Add(fullToc);
-
-                // Create merge group
-                var serviceToc = AzureCLIConfig.ServicePages.Select(sp => new AzureCliUniversalTOC()
-                {
-                    name = sp.Name,
-                    uid = GetUid(sp.Name, true),
-                    //displayName = "",
-                    //items = null
-                });
-                root.items.AddRange(serviceToc);
-
-                HandleAllDualPuposeTocNode(toc);
                 using (var writer = new StreamWriter(Path.Combine(destDirectory, "TOC.yml"), false))
                 {
                     YamlUtility.Serialize(writer, toc);
@@ -336,29 +342,21 @@ namespace AzCliDocPreprocessor
 
         private AzureCliUniversalTOC GroupToToc(string name, Dictionary<string, SDPCLIGroup> AllGroups)
         {
+            if (!AllGroups.ContainsKey(name))
+            {
+                return null;
+            }
+
             var group = AllGroups[name];
             var result = new AzureCliUniversalTOC()
             {
-                name = GetLastGroupName(group.Name),
+                name = TitleMappings.ContainsKey(name) ? TitleMappings[name].TocTitle : GetLastGroupName(group.Name),
                 uid = group.Uid,
-                displayName = group.Name,
                 items = new List<AzureCliUniversalTOC>()
             };
-            //if (TitleMappings.TryGetValue(group.Name, out var toc))
-            //{
-            //    if (!toc.Show) return null;
-            //    result.name = toc.TocTitle;
-            //}
-
-            // commands, not sort here, keep it the same order as group page
-            if(group.DirectCommands != null)
-            {
-                result.items.AddRange(group.DirectCommands.Select(CommandToToc));
-            }
 
             // group, sort from A - Z
-            var groupWordCount = GetWordCount(group.Name);
-            var tocChildGroups = AllGroups.Values.Where(c => GetWordCount(c.Name) == groupWordCount + 1 && c.Name.StartsWith(group.Name + " "));
+            var tocChildGroups = GetChildGroups(group.Name, AllGroups);
 
             result.items.AddRange(tocChildGroups.OrderBy(g => GetLastGroupName(g.Name))
                 .Select(g => GroupToToc(g.Name, AllGroups))
@@ -367,15 +365,10 @@ namespace AzCliDocPreprocessor
             return result;
         }
 
-        private AzureCliUniversalTOC CommandToToc(SDPDirectCommands command)
+        private List<SDPCLIGroup> GetChildGroups(string parentGroupName, Dictionary<string, SDPCLIGroup> AllGroups)
         {
-            var result = new AzureCliUniversalTOC()
-            {
-                name = GetLastGroupName(command.Name),
-                uid = command.Uid,
-                displayName = command.Name
-            };
-            return result;
+            var groupWordCount = GetWordCount(parentGroupName);
+            return AllGroups.Values.Where(c => GetWordCount(c.Name) == groupWordCount + 1 && c.Name.StartsWith(parentGroupName + " ")).ToList();
         }
 
         /// <summary>
@@ -395,13 +388,12 @@ namespace AzCliDocPreprocessor
 
         private void HandleOneDualPuposeTocNode(AzureCliUniversalTOC node)
         {
-            if(!string.IsNullOrEmpty(node.uid) && node.items != null && node.items.Count() > 0)
+            if (!string.IsNullOrEmpty(node.uid) && node.items != null && node.items.Count() > 0)
             {
                 node.items.Insert(0, new AzureCliUniversalTOC()
                 {
                     name = "Summary",
-                    uid = node.uid,
-                    displayName = node.displayName
+                    uid = node.uid
                 });
                 node.uid = null;
             }
@@ -537,61 +529,6 @@ namespace AzCliDocPreprocessor
             }
         }
 
-        private AzureCliUniversalTOC PrepareFusionToc(AzureCliViewModel group, IDictionary<string, string> groupToFilePathMap, string parentName = "")
-        {
-            AzureCliUniversalTOC azureCliUniversalTOC = null;
-            string tocName = null;
-
-            if (string.Equals(group.Name, CommandGroupConfiguration.CommandPrefix, StringComparison.OrdinalIgnoreCase))
-            {
-                tocName = FormalAzGroupName;
-                azureCliUniversalTOC = new AzureCliUniversalTOC()
-                {
-                    name = tocName,
-                    uid = GetUid(group.Name)
-                };
-            }
-            else
-            {
-                tocName = TitleMappings.ContainsKey(group.Name) ? TitleMappings[group.Name].TocTitle : group.Name.Replace(parentName, "").Trim();
-                azureCliUniversalTOC = new AzureCliUniversalTOC()
-                {
-                    name = tocName,
-                    uid = GetUid(group.Name),
-                    displayName = group.Name
-                };
-            }
-            List<AzureCliViewModel> children = group.Children;
-            List<AzureCliViewModel> subGroups = GetSubGroups(group.Name, GetWordCount(group.Name));
-            if (children.Count > 0 || subGroups.Count > 0)
-                azureCliUniversalTOC.items = new List<AzureCliUniversalTOC>();
-            List<AzureCliUniversalTOC> childrenTOC = new List<AzureCliUniversalTOC>();
-            foreach (AzureCliViewModel child in children)
-            {
-                childrenTOC.Add(new AzureCliUniversalTOC()
-                {
-                    name = TitleMappings.ContainsKey(child.Name) ? TitleMappings[child.Name].TocTitle : child.Name.Replace(group.Name, "").Trim(),
-                    uid = GetUid(child.Name),
-                    displayName = child.Name
-                });
-            }
-            List<AzureCliUniversalTOC> subGroupsToc = new List<AzureCliUniversalTOC>();
-            foreach (AzureCliViewModel subGroup in subGroups)
-            {
-                subGroupsToc.Add(PrepareFusionToc(subGroup, groupToFilePathMap, group.Name));
-            }
-            if (childrenTOC.Count > 0 || subGroupsToc.Count > 0)
-            {
-                azureCliUniversalTOC.items = new List<AzureCliUniversalTOC>();
-                childrenTOC.Sort((item1, item2) => string.CompareOrdinal(item1.name, item2.name));
-                subGroupsToc.Sort((item1, item2) => string.CompareOrdinal(item1.name, item2.name));
-                azureCliUniversalTOC.items.AddRange(childrenTOC);
-                azureCliUniversalTOC.items.AddRange(subGroupsToc);
-            }
-
-            return azureCliUniversalTOC;
-        }
-
         private List<AzureCliViewModel> GetSubGroups(string groupName, int groupWordCount)
         {
             return CommandGroups.FindAll(c => GetWordCount(c.Name) == groupWordCount + 1 && c.Name.StartsWith(groupName + " "));
@@ -611,7 +548,7 @@ namespace AzCliDocPreprocessor
         {
             if (isServicePage) commandName = "sp-" + commandName;
 
-            string raw = commandName.Replace(' ', '_').Replace('-', '_');
+            string raw = commandName.Replace(' ', '_');
             return raw;
         }
 

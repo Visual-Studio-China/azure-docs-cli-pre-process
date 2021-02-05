@@ -70,5 +70,12 @@ namespace Microsoft.DocAsCode.EntityModel.Plugins.OpenPublishing.AzureCli.Model.
                 to[key] = from[key];
             }
         }
+
+        public SDPCLIGroup ShallowCopyWithName(string name)
+        {
+            var copy = (SDPCLIGroup)this.MemberwiseClone();
+            copy.Name = name;
+            return copy;
+        }
     }
 }
