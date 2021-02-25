@@ -268,37 +268,43 @@ namespace AzCliDocPreprocessor
 
                 // Generate service pages
                 Dictionary<string, SDPCLIGroup> AllServicePages = new Dictionary<string, SDPCLIGroup>();
-                AllServicePages = AzureCLIConfig.ServicePages.ToDictionary(
-                    sp => sp.Name, 
-                    sp => new SDPCLIGroup()
-                    {
-                        Uid = GetUid(sp.Name, true),
-                        Name = sp.Title ?? sp.Name,
-                        Summary = sp.Summary,
-                        Commands = sp.IsFullListPage ? 
-                            GetChildGroups(CommandGroupConfiguration.CommandPrefix, AllGroups).Select(g => g.Uid).ToList() :
-                            sp.CommandGroups.Select(g => GetUid(g)).ToList()
-                    });
+                //AllServicePages = AzureCLIConfig.ServicePages.ToDictionary(
+                //    sp => sp.Name, 
+                //    sp => new SDPCLIGroup()
+                //    {
+                //        Uid = GetUid(sp.Name, true),
+                //        Name = sp.Title ?? sp.Name,
+                //        Summary = sp.Summary,
+                //        Commands = sp.IsFullListPage ? 
+                //            GetChildGroups(CommandGroupConfiguration.CommandPrefix, AllGroups).Select(g => g.Uid).ToList() :
+                //            sp.CommandGroups.Select(g => GetUid(g)).ToList()
+                //    });
+
+                AllServicePages.Add(CommandGroupConfiguration.CommandPrefix, AllGroups[CommandGroupConfiguration.CommandPrefix]);
 
                 // Prepare toc
                 var toc = new List<AzureCliUniversalTOC>();
                 var root = new AzureCliUniversalTOC()
                 {
                     name = "Reference",
-                    items = new List<AzureCliUniversalTOC>()
+                    uid = GetUid(CommandGroupConfiguration.CommandPrefix),
+                    items = GetChildGroups(CommandGroupConfiguration.CommandPrefix, AllGroups)
+                        .Select(group => GroupToToc(group.Name, AllGroups))
+                        .OrderBy(t => t.name)
+                        .OfType<AzureCliUniversalTOC>().ToList()
                 };
                 toc.Add(root);
 
                 // Create Service Pages TOC
-                var serviceToc = AzureCLIConfig.ServicePages.Select(sp => new AzureCliUniversalTOC()
-                {
-                    name = sp.Name,
-                    uid = GetUid(sp.Name, true),
-                    items = sp.IsFullListPage ? 
-                        null :
-                        sp.CommandGroups.Select(groupName => GroupToToc(groupName, AllGroups)).OfType<AzureCliUniversalTOC>().ToList()
-                });
-                root.items.AddRange(serviceToc);
+                //var serviceToc = AzureCLIConfig.ServicePages.Select(sp => new AzureCliUniversalTOC()
+                //{
+                //    name = sp.Name,
+                //    uid = GetUid(sp.Name, true),
+                //    items = sp.IsFullListPage ? 
+                //        null :
+                //        sp.CommandGroups.Select(groupName => GroupToToc(groupName, AllGroups)).OfType<AzureCliUniversalTOC>().ToList()
+                //});
+                //root.items.AddRange(serviceToc);
 
                 HandleAllDualPuposeTocNode(toc);
 
@@ -310,15 +316,16 @@ namespace AzCliDocPreprocessor
                     using (var writer = new StreamWriter(Path.Combine(destDirectory, relativeDocPath), false))
                     {
                         writer.WriteLine(YamlMimeProcessor);
-                        if(TitleMappings.TryGetValue(commandGroup.Key, out var mapping))
-                        {
-                            // Note: MemberwiseClone SDPCLIGroup here in case the update affects next iteration/moniker
-                            YamlUtility.Serialize(writer, commandGroup.Value.ShallowCopyWithName(mapping.PageTitle ?? mapping.TocTitle ?? commandGroup.Key));
-                        }
-                        else
-                        {
-                            YamlUtility.Serialize(writer, commandGroup.Value);
-                        }
+                        YamlUtility.Serialize(writer, commandGroup.Value);
+                        //if(TitleMappings.TryGetValue(commandGroup.Key, out var mapping))
+                        //{
+                        //    // Note: MemberwiseClone SDPCLIGroup here in case the update affects next iteration/moniker
+                        //    YamlUtility.Serialize(writer, commandGroup.Value.ShallowCopyWithName(mapping.PageTitle ?? mapping.TocTitle ?? commandGroup.Key));
+                        //}
+                        //else
+                        //{
+                        //    YamlUtility.Serialize(writer, commandGroup.Value);
+                        //}
                     }
                 }
 
