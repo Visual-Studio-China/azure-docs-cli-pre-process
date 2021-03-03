@@ -297,7 +297,7 @@ namespace AzCliDocPreprocessor
                 };
                 toc.Add(root);
 
-                //Create Service Pages TOC
+                // Create Service Pages TOC
                 var serviceToc = AzureCLIConfig.ServicePages.Select(sp => new AzureCliUniversalTOC()
                 {
                     name = sp.Name,
@@ -318,16 +318,15 @@ namespace AzCliDocPreprocessor
                     using (var writer = new StreamWriter(Path.Combine(destDirectory, relativeDocPath), false))
                     {
                         writer.WriteLine(YamlMimeProcessor);
-                        YamlUtility.Serialize(writer, commandGroup.Value);
-                        //if(TitleMappings.TryGetValue(commandGroup.Key, out var mapping))
-                        //{
-                        //    // Note: MemberwiseClone SDPCLIGroup here in case the update affects next iteration/moniker
-                        //    YamlUtility.Serialize(writer, commandGroup.Value.ShallowCopyWithName(mapping.PageTitle ?? mapping.TocTitle ?? commandGroup.Key));
-                        //}
-                        //else
-                        //{
-                        //    YamlUtility.Serialize(writer, commandGroup.Value);
-                        //}
+                        if (TitleMappings.TryGetValue(commandGroup.Key, out var mapping))
+                        {
+                            // Note: MemberwiseClone SDPCLIGroup here in case the update affects next iteration/moniker
+                            YamlUtility.Serialize(writer, commandGroup.Value.ShallowCopyWithName(mapping.PageTitle ?? mapping.TocTitle ?? commandGroup.Key));
+                        }
+                        else
+                        {
+                            YamlUtility.Serialize(writer, commandGroup.Value);
+                        }
                     }
                 }
 
