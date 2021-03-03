@@ -48,6 +48,7 @@ namespace AzCliDocPreprocessor
 
         // all the data
         // key => moniker
+        // Notice: if this is azsphere, the key is just the folder name, not moniker
         private Dictionary<string, SDPCLIGroup[]> CoreSDPGroups { get; set; } = new Dictionary<string, SDPCLIGroup[]>();
         // key => extension name
         private Dictionary<string, SDPCLIGroup[]> ExtensionSDPGroups { get; set; } = new Dictionary<string, SDPCLIGroup[]>();
@@ -82,7 +83,14 @@ namespace AzCliDocPreprocessor
                 ProccessOneXml(extensionXmlPath);
             }
 
-            OrganizeAndSave();
+            if(Options.GroupName == CommandGroupType.AZSPHERE)
+            {
+                OrganizeAndSaveAzSphere();
+            }
+            else
+            {
+                OrganizeAndSave();
+            }
 
             return true;
         }
@@ -268,43 +276,37 @@ namespace AzCliDocPreprocessor
 
                 // Generate service pages
                 Dictionary<string, SDPCLIGroup> AllServicePages = new Dictionary<string, SDPCLIGroup>();
-                //AllServicePages = AzureCLIConfig.ServicePages.ToDictionary(
-                //    sp => sp.Name, 
-                //    sp => new SDPCLIGroup()
-                //    {
-                //        Uid = GetUid(sp.Name, true),
-                //        Name = sp.Title ?? sp.Name,
-                //        Summary = sp.Summary,
-                //        Commands = sp.IsFullListPage ? 
-                //            GetChildGroups(CommandGroupConfiguration.CommandPrefix, AllGroups).Select(g => g.Uid).ToList() :
-                //            sp.CommandGroups.Select(g => GetUid(g)).ToList()
-                //    });
-
-                AllServicePages.Add(CommandGroupConfiguration.CommandPrefix, AllGroups[CommandGroupConfiguration.CommandPrefix]);
+                AllServicePages = AzureCLIConfig.ServicePages.ToDictionary(
+                    sp => sp.Name,
+                    sp => new SDPCLIGroup()
+                    {
+                        Uid = GetUid(sp.Name, true),
+                        Name = sp.Title ?? sp.Name,
+                        Summary = sp.Summary,
+                        Commands = sp.IsFullListPage ?
+                            GetChildGroups(CommandGroupConfiguration.CommandPrefix, AllGroups).Select(g => g.Uid).ToList() :
+                            sp.CommandGroups.Select(g => GetUid(g)).ToList()
+                    });
 
                 // Prepare toc
                 var toc = new List<AzureCliUniversalTOC>();
                 var root = new AzureCliUniversalTOC()
                 {
                     name = "Reference",
-                    uid = GetUid(CommandGroupConfiguration.CommandPrefix),
-                    items = GetChildGroups(CommandGroupConfiguration.CommandPrefix, AllGroups)
-                        .Select(group => GroupToToc(group.Name, AllGroups))
-                        .OrderBy(t => t.name)
-                        .OfType<AzureCliUniversalTOC>().ToList()
+                    items = new List<AzureCliUniversalTOC>()
                 };
                 toc.Add(root);
 
-                // Create Service Pages TOC
-                //var serviceToc = AzureCLIConfig.ServicePages.Select(sp => new AzureCliUniversalTOC()
-                //{
-                //    name = sp.Name,
-                //    uid = GetUid(sp.Name, true),
-                //    items = sp.IsFullListPage ? 
-                //        null :
-                //        sp.CommandGroups.Select(groupName => GroupToToc(groupName, AllGroups)).OfType<AzureCliUniversalTOC>().ToList()
-                //});
-                //root.items.AddRange(serviceToc);
+                //Create Service Pages TOC
+                var serviceToc = AzureCLIConfig.ServicePages.Select(sp => new AzureCliUniversalTOC()
+                {
+                    name = sp.Name,
+                    uid = GetUid(sp.Name, true),
+                    items = sp.IsFullListPage ?
+                        null :
+                        sp.CommandGroups.Select(groupName => GroupToToc(groupName, AllGroups)).OfType<AzureCliUniversalTOC>().ToList()
+                });
+                root.items.AddRange(serviceToc);
 
                 HandleAllDualPuposeTocNode(toc);
 
@@ -344,6 +346,93 @@ namespace AzCliDocPreprocessor
                 {
                     YamlUtility.Serialize(writer, toc);
                 }
+            }
+        }
+
+        private void OrganizeAndSaveAzSphere()
+        {
+            // For azsphere, key is not moniker
+            // Merge groups (should be only happend for azsphere), no need to merge commands
+            var AllGroups = new Dictionary<string, SDPCLIGroup>();
+            foreach (var corekvp in CoreSDPGroups)
+            {
+                foreach (var coreGroup in corekvp.Value)
+                {
+                    if (AllGroups.ContainsKey(coreGroup.Name))
+                    {
+                        var group = AllGroups[coreGroup.Name];
+
+                        // keep group.Uid (should be the same)
+                        // keep group.Name (should be the same)
+                        // ignore extGroup.ExtensionInformation (group is introduced by cli core, just some sub groups/commands from extension)
+                        // keep group.Summary (TBD)
+                        // keep group.Description (TBD)
+                        // merge DirectCommands
+                        if (coreGroup.DirectCommands?.Count > 0)
+                        {
+                            if (group.DirectCommands?.Count > 0)
+                            {
+                                group.DirectCommands = group.DirectCommands.Union(coreGroup.DirectCommands, DirectCommandsComparer._default).ToList();
+                            }
+                            else
+                            {
+                                group.DirectCommands = coreGroup.DirectCommands;
+                            }
+                        }
+                        // merge Commands
+                        if (coreGroup.Commands?.Count > 0)
+                        {
+                            if (group.Commands?.Count > 0)
+                            {
+                                group.Commands = group.Commands.Union(coreGroup.Commands).ToList();
+                            }
+                            else
+                            {
+                                group.Commands = coreGroup.Commands;
+                            }
+                        }
+                        // keep group.GlobalParameters (should be the same)
+                        // keep group.Metadata (TBD)
+                    }
+                    else
+                    {
+                        AllGroups.Add(coreGroup.Name, coreGroup);
+                    }
+                }
+            }
+
+            // No service pages
+
+            // Prepare toc
+            var toc = new List<AzureCliUniversalTOC>();
+            var root = new AzureCliUniversalTOC()
+            {
+                name = "Reference",
+                uid = GetUid(CommandGroupConfiguration.CommandPrefix),
+                items = GetChildGroups(CommandGroupConfiguration.CommandPrefix, AllGroups)
+                    .Select(group => GroupToToc(group.Name, AllGroups))
+                    .OrderBy(t => t.name)
+                    .OfType<AzureCliUniversalTOC>().ToList()
+            };
+            toc.Add(root);
+            HandleAllDualPuposeTocNode(toc);
+
+            // Write command group page
+            var destDirectory = Path.Combine(Options.DestDirectory, AutoGenFolderName);
+            foreach (var commandGroup in AllGroups)
+            {
+                var relativeDocPath = PrepareDocFilePath(destDirectory, commandGroup.Key);
+                using (var writer = new StreamWriter(Path.Combine(destDirectory, relativeDocPath), false))
+                {
+                    writer.WriteLine(YamlMimeProcessor);
+                    YamlUtility.Serialize(writer, commandGroup.Value);
+                }
+            }
+
+            // Write toc
+            using (var writer = new StreamWriter(Path.Combine(destDirectory, "TOC.yml"), false))
+            {
+                YamlUtility.Serialize(writer, toc);
             }
         }
 
@@ -443,7 +532,7 @@ namespace AzCliDocPreprocessor
             if (string.IsNullOrEmpty(Options.TocFileName))
                 throw new ArgumentException("Invalid TocFileName");
 
-            if (string.IsNullOrEmpty(Options.SourceXmlPath))
+            if (string.IsNullOrEmpty(Options.SourceXmlPath) && Options.GroupName != CommandGroupType.AZSPHERE)
                 throw new ArgumentException("Invalid Empty SourceXmlPath");
             else
             {
@@ -491,10 +580,7 @@ namespace AzCliDocPreprocessor
             ExtensionsInformation = GetExtensionsInformation();
             GlobalParameters = AzureCLIConfig?.GlobalParameters ?? GetGlobalParameters();
             TitleMappings = AzureCLIConfig?.TitleMapping ?? GetTitleMappings();
-            if (Enum.GetNames(typeof(CommandGroupType)).Contains(Options.GroupName.ToUpper()))
-                CommandGroupConfiguration = ParserCommandGroupConfiguration((CommandGroupType)Enum.Parse(typeof(CommandGroupType), Options.GroupName.ToUpper(), true));
-            else
-                CommandGroupConfiguration = ParserCommandGroupConfiguration(CommandGroupType.AZURE);
+            CommandGroupConfiguration = ParserCommandGroupConfiguration(Options.GroupName);
         }
 
         private void SaveToSDPData(string xmlPath)
@@ -876,6 +962,8 @@ namespace AzCliDocPreprocessor
             {
                 case CommandGroupType.AZURE:
                     return new JavaScriptSerializer().Deserialize<CommandGroupConfiguration>(new StreamReader("./data/AzureCliConfiguration.json").ReadToEnd());
+                case CommandGroupType.AZSPHERE:
+                    return new JavaScriptSerializer().Deserialize<CommandGroupConfiguration>(new StreamReader("./data/AzSphereCliConfiguration.json").ReadToEnd());
                 case CommandGroupType.VSTS:
                     return new JavaScriptSerializer().Deserialize<CommandGroupConfiguration>(new StreamReader("./data/VSTSCliConfiguration.json").ReadToEnd());
                 default:

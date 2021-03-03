@@ -16,7 +16,7 @@ namespace Microsoft.DocAsCode.EntityModel.Plugins.OpenPublishing.AzureCli
     public enum CommandGroupType
     {
         AZURE,
-
+        AZSPHERE,
         VSTS
     }
 }

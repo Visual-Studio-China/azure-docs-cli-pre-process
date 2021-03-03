@@ -1,5 +1,6 @@
 ﻿using CommandLine;
 using CommandLine.Text;
+using Microsoft.DocAsCode.EntityModel.Plugins.OpenPublishing.AzureCli;
 
 namespace AzCliDocPreprocessor
 {
@@ -44,8 +45,8 @@ namespace AzCliDocPreprocessor
         [Option("config", Required = false)]
         public string AzureCLIConfigFile { get; set; }
 
-        [Option('g', "group", Required = false, DefaultValue = "azure")]
-        public string GroupName { get; set; }
+        [Option('g', "group", Required = false, DefaultValue = CommandGroupType.AZURE)]
+        public CommandGroupType GroupName { get; set; }
 
         [HelpOption]
         public string GetUsage()

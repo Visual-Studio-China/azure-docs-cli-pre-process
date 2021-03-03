@@ -1,4 +1,4 @@
 ﻿{
-  "CommandPrefix": "azsphere",
+  "CommandPrefix": "az",
   "Language": "azurecli"
 }

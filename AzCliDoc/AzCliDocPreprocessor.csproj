@@ -83,6 +83,9 @@
   <ItemGroup>
     <None Include="App.config" />
     <None Include="AzCliDocPreprocessor.nuspec" />
+    <None Include="data\AzSphereCliConfiguration.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
     <None Include="data\AzureCliConfiguration.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
