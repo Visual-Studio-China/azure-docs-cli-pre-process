@@ -315,8 +315,14 @@ namespace AzCliDocPreprocessor
             foreach (var group in AllGroups)
             {
                 // azsphere feature 1: sort commands
-                group.Value.Commands = group.Value.Commands.OrderBy(command => command).ToList();
-                group.Value.DirectCommands = group.Value.DirectCommands.OrderBy(command => command.Name).ToList();
+                if(group.Value.Commands != null)
+                {
+                    group.Value.Commands = group.Value.Commands.OrderBy(command => command).ToList();
+                }
+                if (group.Value.DirectCommands != null)
+                {
+                    group.Value.DirectCommands = group.Value.DirectCommands.OrderBy(command => command.Name).ToList();
+                }
                 // azsphere feature 2: escape some tag
                 EscapeTagInGroup(group.Value);
             }
