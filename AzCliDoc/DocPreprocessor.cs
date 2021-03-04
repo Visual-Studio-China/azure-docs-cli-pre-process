@@ -364,34 +364,37 @@ namespace AzCliDocPreprocessor
         {
             group.Summary = EscapeTagInString(group.Summary);
             group.Description = EscapeTagInString(group.Description);
-            foreach (var directCommand in group.DirectCommands)
+            if(group.DirectCommands != null)
             {
-                directCommand.Summary = EscapeTagInString(directCommand.Summary);
-                directCommand.Description = EscapeTagInString(directCommand.Description);
-
-                if (directCommand.Examples != null)
+                foreach (var directCommand in group.DirectCommands)
                 {
-                    foreach (var example in directCommand.Examples)
+                    directCommand.Summary = EscapeTagInString(directCommand.Summary);
+                    directCommand.Description = EscapeTagInString(directCommand.Description);
+
+                    if (directCommand.Examples != null)
                     {
-                        example.Summary = EscapeTagInString(example.Summary);
+                        foreach (var example in directCommand.Examples)
+                        {
+                            example.Summary = EscapeTagInString(example.Summary);
+                        }
                     }
-                }
 
-                if (directCommand.RequiredParameters != null)
-                {
-                    foreach (var requiredParameter in directCommand.RequiredParameters)
+                    if (directCommand.RequiredParameters != null)
                     {
-                        requiredParameter.Summary = EscapeTagInString(requiredParameter.Summary);
-                        requiredParameter.Description = EscapeTagInString(requiredParameter.Description);
+                        foreach (var requiredParameter in directCommand.RequiredParameters)
+                        {
+                            requiredParameter.Summary = EscapeTagInString(requiredParameter.Summary);
+                            requiredParameter.Description = EscapeTagInString(requiredParameter.Description);
+                        }
                     }
-                }
 
-                if (directCommand.OptionalParameters != null)
-                {
-                    foreach (var optionalParameter in directCommand.OptionalParameters)
+                    if (directCommand.OptionalParameters != null)
                     {
-                        optionalParameter.Summary = EscapeTagInString(optionalParameter.Summary);
-                        optionalParameter.Description = EscapeTagInString(optionalParameter.Description);
+                        foreach (var optionalParameter in directCommand.OptionalParameters)
+                        {
+                            optionalParameter.Summary = EscapeTagInString(optionalParameter.Summary);
+                            optionalParameter.Description = EscapeTagInString(optionalParameter.Description);
+                        }
                     }
                 }
             }
@@ -399,7 +402,7 @@ namespace AzCliDocPreprocessor
 
         private string EscapeTagInString(string content)
         {
-            return TagRegex.Replace(content, @"\$&");
+            return content == null ? null : TagRegex.Replace(content, @"\$&");
         }
 
         private void MergeIntoAllGroups(Dictionary<string, SDPCLIGroup> allGroups, Dictionary<string, SDPCLIGroup[]> groups)
