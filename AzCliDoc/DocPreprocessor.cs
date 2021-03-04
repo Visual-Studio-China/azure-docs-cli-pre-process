@@ -12,6 +12,7 @@ using System.Xml.XPath;
 using Microsoft.DocAsCode.Common;
 using Microsoft.DocAsCode.EntityModel.Plugins.OpenPublishing.AzureCli.Model.Model.SDP;
 using System.Net;
+using System.Text.RegularExpressions;
 
 namespace AzCliDocPreprocessor
 {
@@ -24,6 +25,7 @@ namespace AzCliDocPreprocessor
         private const string ReferenceIndexFileName = "reference-index";
         private const string ExtensionReferenceIndexFileName = "index";
         private const string ExtensionGlobalPrefix = "ext";
+        private readonly Regex TagRegex = new Regex(@"(?!<a)<[\w-]+>");
 
         // from config
         private AzureCLIConfig AzureCLIConfig { get; set; }
@@ -225,54 +227,9 @@ namespace AzCliDocPreprocessor
         {
             foreach (var kvp in CoreSDPGroups)
             {
-                // Merge core and extension groups, no need to merge commands
+                // Merge core and extension groups
                 Dictionary<string, SDPCLIGroup> AllGroups = kvp.Value.ToDictionary(group => group.Name);
-                foreach (var extkvp in ExtensionSDPGroups)
-                {
-                    foreach (var extGroup in extkvp.Value)
-                    {
-                        if (AllGroups.ContainsKey(extGroup.Name))
-                        {
-                            var group = AllGroups[extGroup.Name];
-
-                            // keep group.Uid (should be the same)
-                            // keep group.Name (should be the same)
-                            // ignore extGroup.ExtensionInformation (group is introduced by cli core, just some sub groups/commands from extension)
-                            // keep group.Summary (TBD)
-                            // keep group.Description (TBD)
-                            // merge DirectCommands
-                            if (extGroup.DirectCommands?.Count > 0)
-                            {
-                                if (group.DirectCommands?.Count > 0)
-                                {
-                                    group.DirectCommands = group.DirectCommands.Union(extGroup.DirectCommands, DirectCommandsComparer._default).ToList();
-                                }
-                                else
-                                {
-                                    group.DirectCommands = extGroup.DirectCommands;
-                                }
-                            }
-                            // merge Commands
-                            if (extGroup.Commands?.Count > 0)
-                            {
-                                if (group.Commands?.Count > 0)
-                                {
-                                    group.Commands = group.Commands.Union(extGroup.Commands).ToList();
-                                }
-                                else
-                                {
-                                    group.Commands = extGroup.Commands;
-                                }
-                            }
-                            // keep group.GlobalParameters (should be the same)
-                            // keep group.Metadata (TBD)
-                        }
-                        else
-                        {
-                            AllGroups.Add(extGroup.Name, extGroup);
-                        }
-                    }
-                }
+                MergeIntoAllGroups(AllGroups, ExtensionSDPGroups);
 
                 // Generate service pages
                 Dictionary<string, SDPCLIGroup> AllServicePages = new Dictionary<string, SDPCLIGroup>();
@@ -350,59 +307,21 @@ namespace AzCliDocPreprocessor
 
         private void OrganizeAndSaveAzSphere()
         {
-            // For azsphere, key is not moniker
-            // Merge groups (should be only happend for azsphere), no need to merge commands
+            // For azsphere, key is not moniker, just folder
+            // Merge groups (should bonly happen for the root group: azsphere)
             var AllGroups = new Dictionary<string, SDPCLIGroup>();
-            foreach (var corekvp in CoreSDPGroups)
-            {
-                foreach (var coreGroup in corekvp.Value)
-                {
-                    if (AllGroups.ContainsKey(coreGroup.Name))
-                    {
-                        var group = AllGroups[coreGroup.Name];
+            MergeIntoAllGroups(AllGroups, CoreSDPGroups);
 
-                        // keep group.Uid (should be the same)
-                        // keep group.Name (should be the same)
-                        // ignore extGroup.ExtensionInformation (group is introduced by cli core, just some sub groups/commands from extension)
-                        // keep group.Summary (TBD)
-                        // keep group.Description (TBD)
-                        // merge DirectCommands
-                        if (coreGroup.DirectCommands?.Count > 0)
-                        {
-                            if (group.DirectCommands?.Count > 0)
-                            {
-                                group.DirectCommands = group.DirectCommands.Union(coreGroup.DirectCommands, DirectCommandsComparer._default).ToList();
-                            }
-                            else
-                            {
-                                group.DirectCommands = coreGroup.DirectCommands;
-                            }
-                        }
-                        // merge Commands
-                        if (coreGroup.Commands?.Count > 0)
-                        {
-                            if (group.Commands?.Count > 0)
-                            {
-                                group.Commands = group.Commands.Union(coreGroup.Commands).ToList();
-                            }
-                            else
-                            {
-                                group.Commands = coreGroup.Commands;
-                            }
-                        }
-                        // keep group.GlobalParameters (should be the same)
-                        // keep group.Metadata (TBD)
-                    }
-                    else
-                    {
-                        AllGroups.Add(coreGroup.Name, coreGroup);
-                    }
-                }
+            foreach (var group in AllGroups)
+            {
+                // azsphere feature 1: sort commands
+                group.Value.Commands = group.Value.Commands.OrderBy(command => command).ToList();
+                group.Value.DirectCommands = group.Value.DirectCommands.OrderBy(command => command.Name).ToList();
+                // azsphere feature 2: escape some tag
+                EscapeTagInGroup(group.Value);
             }
 
-            // No service pages
-
-            // Prepare toc
+            // Prepare toc, no service pages, just azsphere as root
             var toc = new List<AzureCliUniversalTOC>();
             var root = new AzureCliUniversalTOC()
             {
@@ -432,6 +351,99 @@ namespace AzCliDocPreprocessor
             using (var writer = new StreamWriter(Path.Combine(destDirectory, "TOC.yml"), false))
             {
                 YamlUtility.Serialize(writer, toc);
+            }
+        }
+
+        private void EscapeTagInGroup(SDPCLIGroup group)
+        {
+            group.Summary = EscapeTagInString(group.Summary);
+            group.Description = EscapeTagInString(group.Description);
+            foreach (var directCommand in group.DirectCommands)
+            {
+                directCommand.Summary = EscapeTagInString(directCommand.Summary);
+                directCommand.Description = EscapeTagInString(directCommand.Description);
+
+                if (directCommand.Examples != null)
+                {
+                    foreach (var example in directCommand.Examples)
+                    {
+                        example.Summary = EscapeTagInString(example.Summary);
+                    }
+                }
+
+                if (directCommand.RequiredParameters != null)
+                {
+                    foreach (var requiredParameter in directCommand.RequiredParameters)
+                    {
+                        requiredParameter.Summary = EscapeTagInString(requiredParameter.Summary);
+                        requiredParameter.Description = EscapeTagInString(requiredParameter.Description);
+                    }
+                }
+
+                if (directCommand.OptionalParameters != null)
+                {
+                    foreach (var optionalParameter in directCommand.OptionalParameters)
+                    {
+                        optionalParameter.Summary = EscapeTagInString(optionalParameter.Summary);
+                        optionalParameter.Description = EscapeTagInString(optionalParameter.Description);
+                    }
+                }
+            }
+        }
+
+        private string EscapeTagInString(string content)
+        {
+            return TagRegex.Replace(content, @"\$&");
+        }
+
+        private void MergeIntoAllGroups(Dictionary<string, SDPCLIGroup> allGroups, Dictionary<string, SDPCLIGroup[]> groups)
+        {
+            // Merge groups, no need to merge commands
+            foreach (var kvp in groups)
+            {
+                foreach (var newGroup in kvp.Value)
+                {
+                    if (allGroups.ContainsKey(newGroup.Name))
+                    {
+                        var group = allGroups[newGroup.Name];
+
+                        // keep group.Uid (should be the same)
+                        // keep group.Name (should be the same)
+                        // ignore extGroup.ExtensionInformation (group is introduced by cli core, just some sub groups/commands from extension)
+                        // keep group.Summary (TBD)
+                        // keep group.Description (TBD)
+                        // merge DirectCommands
+                        if (newGroup.DirectCommands?.Count > 0)
+                        {
+                            if (group.DirectCommands?.Count > 0)
+                            {
+                                group.DirectCommands = group.DirectCommands.Union(newGroup.DirectCommands, DirectCommandsComparer._default).ToList();
+                            }
+                            else
+                            {
+                                group.DirectCommands = newGroup.DirectCommands;
+                            }
+                        }
+                        // merge Commands
+                        if (newGroup.Commands?.Count > 0)
+                        {
+                            if (group.Commands?.Count > 0)
+                            {
+                                group.Commands = group.Commands.Union(newGroup.Commands).ToList();
+                            }
+                            else
+                            {
+                                group.Commands = newGroup.Commands;
+                            }
+                        }
+                        // keep group.GlobalParameters (should be the same)
+                        // keep group.Metadata (TBD)
+                    }
+                    else
+                    {
+                        allGroups.Add(newGroup.Name, newGroup);
+                    }
+                }
             }
         }
 
